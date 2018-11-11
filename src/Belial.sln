@@ -3,9 +3,24 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28010.2050
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Belial", "Belial\Belial.csproj", "{BB13C2B4-6A83-44DA-BA07-5C23059B917A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Belial", "Belial\Belial.csproj", "{BB13C2B4-6A83-44DA-BA07-5C23059B917A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Belial.Tests", "Belial.Tests\Belial.Tests.csproj", "{2399211C-5D24-4EB8-B1F2-EA3D40D27B02}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Belial.Tests", "Belial.Tests\Belial.Tests.csproj", "{2399211C-5D24-4EB8-B1F2-EA3D40D27B02}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Scripts", "Scripts", "{A0BD57D2-9155-43F1-8F7E-C545B751345E}"
+	ProjectSection(SolutionItems) = preProject
+		..\scripts\build.ps1 = ..\scripts\build.ps1
+		..\scripts\test.ps1 = ..\scripts\test.ps1
+		..\scripts\TestHttpFunctions.linq = ..\scripts\TestHttpFunctions.linq
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Other", "Other", "{B43C25BC-788A-4AB6-949C-141C37CCE691}"
+	ProjectSection(SolutionItems) = preProject
+		..\.gitignore = ..\.gitignore
+		..\azure-pipelines.yml = ..\azure-pipelines.yml
+		..\LICENSE = ..\LICENSE
+		..\README.md = ..\README.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
