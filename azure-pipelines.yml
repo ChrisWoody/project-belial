@@ -7,3 +7,8 @@ steps:
 
 - script: powershell .\scripts\test.ps1
   displayName: 'Test'
+
+- task: PublishTestResults@2
+  inputs:
+    testResultsFormat: VSTest
+    testResultsFiles: '**/*.trx'
