@@ -12,3 +12,17 @@ steps:
   inputs:
     testResultsFormat: VSTest
     testResultsFiles: '**/*.trx'
+    failOnStandardError: 'true'
+
+- powershell: |
+    $resultTrx = "src/Belial.Tests/TestResults/testresults.trx"
+    if($(Get-Content $resultTrx | Out-String) -match 'outcome="Failed"')
+    {
+        #  will produce $LASTEXITCODE=1
+        Write-Error "tests failed"
+    }
+    else
+    {
+        Write-Host "No test failures"
+    }
+  displayName: Check for test failures
