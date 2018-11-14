@@ -17,6 +17,7 @@ async Task Main()
     var responseContent = new StringContent(JsonConvert.SerializeObject(bookEntry).Dump(), Encoding.UTF8, "application/json");
     
     var response = await httpClient.PostAsync("http://127.0.0.1:7071/api/ManualBookEntry", responseContent);
+    //var response = await httpClient.PostAsync("http://127.0.0.1:7071/api/ManualBookEntry?code=<functionkey>", responseContent);
 
     (await response.Content.ReadAsStringAsync()).Dump("Response Content");
     response.Dump("Full Response");
