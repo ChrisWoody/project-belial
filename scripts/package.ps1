@@ -18,4 +18,8 @@ if (Test-Path "$packagePath\local.settings.json") {
     Remove-Item "$packagePath\local.settings.json"
 }
 
+if (Test-Path "$packagePath\bin\runtimes\") {
+    Remove-Item "$packagePath\bin\runtimes\" -Recurse
+}
+
 Compress-Archive -Path $packagePath\* -DestinationPath "$packagePath\webapp.zip" -Force

@@ -26,3 +26,6 @@ steps:
         Write-Host "No test failures"
     }
   displayName: Check for test failures
+
+- script: powershell .\scripts\package.ps1
+  displayName: 'Package'
