@@ -10,8 +10,6 @@ New-Item $packagePath -ItemType Directory | Out-Null;
 
 $binPath = Join-Path $PSScriptRoot -ChildPath "..\src\Belial\bin\Debug\netcoreapp2.1" | Resolve-Path
 
-Write-Host "Found function app at '$packagepath'"
-
 Get-ChildItem "$binPath" | Copy-Item -Destination "$packagePath" -Recurse -Container
 
 if (Test-Path "$packagePath\local.settings.json") {
