@@ -1,10 +1,10 @@
 pool:
   vmImage: 'VS2017-Win2016'
 
-variables:
-  appservicenamevar: '$(appservicename)'
-  appserviceusernamevar: '$(appserviceusername)'
-  appservicepasswordvar: '$(appservicepassword)'
+#variables:
+#  appservicenamevar: '$(appservicename)'
+#  appserviceusernamevar: '$(appserviceusername)'
+#  appservicepasswordvar: '$(appservicepassword)'
 
 steps:
 - script: powershell .\scripts\build.ps1
@@ -35,6 +35,6 @@ steps:
 - script: powershell .\scripts\package.ps1
   displayName: 'Package'
 
-- script: powershell .\scripts\deploy.ps1 -appServiceName $(appservicenamevar) -Username $(appserviceusernamevar) -Password $(appservicepasswordvar)
+- script: powershell .\scripts\deploy.ps1 -appServiceName "$(appservicename)" -Username "$(appserviceusername)" -Password "$(appservicepassword)
   condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
   displayName: 'Deploy'

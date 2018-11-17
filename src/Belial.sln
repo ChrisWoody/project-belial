@@ -10,6 +10,10 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Scripts", "Scripts", "{A0BD57D2-9155-43F1-8F7E-C545B751345E}"
 	ProjectSection(SolutionItems) = preProject
 		..\scripts\build.ps1 = ..\scripts\build.ps1
+		..\scripts\deploy.ps1 = ..\scripts\deploy.ps1
+		..\scripts\package.ps1 = ..\scripts\package.ps1
+		..\scripts\provision.ps1 = ..\scripts\provision.ps1
+		..\scripts\provisionarm.json = ..\scripts\provisionarm.json
 		..\scripts\test.ps1 = ..\scripts\test.ps1
 		..\scripts\TestHttpFunctions.linq = ..\scripts\TestHttpFunctions.linq
 	EndProjectSection

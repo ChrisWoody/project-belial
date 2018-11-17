@@ -23,7 +23,7 @@ try {
     '-verb:sync ' +
     "-source:package='$PackagePath' " + 
     "-dest:ContentPath=.,ComputerName=https://$appServiceUrl/msdeploy.axd?site=$appServiceName,UserName=$Username,Password=$Password,AuthType='Basic',includeAcls='False' " +
-    "-retryAttempts:5 -retryInterval:5000"
+    "-retryAttempts:5 -retryInterval:5000 -verbose"
     
     $commandLine = '&"C:\Program Files\IIS\Microsoft Web Deploy V3\msdeploy.exe" --% ' + $msDeployArgs
     Invoke-Expression $commandLine
