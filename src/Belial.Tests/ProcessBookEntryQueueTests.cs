@@ -9,7 +9,7 @@ namespace Belial.Tests
         private const string BookEntryQueueMessage = "{\"Title\":\"The Purging of Kadillus\"}";
 
         [Fact]
-        public async Task GivenPushedToBookEntryQueue_WhenProcessBookEntryQueue_ThenMessagePushedToAddBookQueue()
+        public async Task GivenMessageFromBookEntryQueue_WhenProcessBookEntryQueue_ThenMessagePushedToAddBookQueue()
         {
             var addBookQueue = new TestAsyncCollector<string>();
 

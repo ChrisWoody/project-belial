@@ -6,6 +6,7 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.WindowsAzure.Storage.Table;
 using Newtonsoft.Json;
 
 namespace Belial
@@ -48,13 +49,37 @@ namespace Belial
             ILogger log,
             [Queue(AddBookQueueName)] IAsyncCollector<string> addBookQueue)
         {
-            log.LogInformation("Handle Book Entry function called");
+            log.LogInformation("Process Book Entry Queue function called");
 
             await addBookQueue.AddAsync(bookEntryQueueMessage);
+        }
+
+        [FunctionName("ProcessAddBookQueue")]
+        public static async Task ProcessAddBookQueueFunction(
+            [QueueTrigger(AddBookQueueName)] string addBookQueueMessage,
+            ILogger log,
+            [Table("book")] IAsyncCollector<BookTableEntity> bookTable)
+        {
+            log.LogInformation("Process Add Book Queue function called");
+
+            var bookEntry = JsonConvert.DeserializeObject<BookEntry>(addBookQueueMessage);
+
+            // Assuming it doesn't exist for now
+            await bookTable.AddAsync(new BookTableEntity
+            {
+                PartitionKey = "0",
+                RowKey = "1234567",
+                Title = bookEntry.Title,
+            });
         }
     }
 
     public class BookEntry
+    {
+        public string Title { get; set; }
+    }
+
+    public class BookTableEntity : TableEntity
     {
         public string Title { get; set; }
     }
