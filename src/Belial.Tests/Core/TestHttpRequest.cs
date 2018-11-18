@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 
-namespace Belial.Tests
+namespace Belial.Tests.Core
 {
     public class TestHttpRequest : HttpRequest
     {

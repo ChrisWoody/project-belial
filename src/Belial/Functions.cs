@@ -15,18 +15,22 @@ namespace Belial
         [FunctionName("ManualBookEntry")]
         public static async Task<IActionResult> ManualBookEntryFunction(
             [HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequest req,
-            ILogger log)
+            ILogger log,
+            [Queue("book-entry-queue")] IAsyncCollector<string> bookEntryQueue)
         {
             log.LogInformation("Manual Book Entry function called");
 
             try
             {
-                var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-                var book = JsonConvert.DeserializeObject<BookEntry>(requestBody);
+                var bookEntryRequest = await new StreamReader(req.Body).ReadToEndAsync();
+                var bookEntry = JsonConvert.DeserializeObject<BookEntry>(bookEntryRequest);
 
-                return !string.IsNullOrWhiteSpace(book?.Name)
-                    ? (ActionResult)new OkObjectResult($"Valid request to add '{book.Name}'.")
-                    : new BadRequestObjectResult("Invalid request to add book. 'Name' missing.");
+                if (string.IsNullOrWhiteSpace(bookEntry?.Title))
+                    return new BadRequestObjectResult("Invalid request to add book. 'Title' missing.");
+
+                await bookEntryQueue.AddAsync(bookEntryRequest);
+
+                return new OkObjectResult($"Valid request to add '{bookEntry.Title}'.");
             }
             catch (Exception e)
             {
@@ -38,6 +42,6 @@ namespace Belial
 
     public class BookEntry
     {
-        public string Name { get; set; }
+        public string Title { get; set; }
     }
 }

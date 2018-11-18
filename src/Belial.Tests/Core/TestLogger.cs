@@ -1,7 +1,7 @@
 using System;
 using Microsoft.Extensions.Logging;
 
-namespace Belial.Tests
+namespace Belial.Tests.Core
 {
     public class TestLogger : ILogger
     {

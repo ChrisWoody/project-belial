@@ -12,7 +12,7 @@ async Task Main()
     
     var bookEntry = new BookEntry
     {
-        Name = "The Purging of Kadillus"
+        Title = "The Purging of Kadillus"
     };
     var responseContent = new StringContent(JsonConvert.SerializeObject(bookEntry).Dump(), Encoding.UTF8, "application/json");
     
@@ -26,5 +26,5 @@ async Task Main()
 
 public class BookEntry
 {
-    public string Name { get; set; }
+    public string Title { get; set; }
 }
