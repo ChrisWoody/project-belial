@@ -8,7 +8,7 @@ namespace Belial.Tests
 {
     public class ManualBookEntryTests
     {
-        private const string ValidRequest = "{\"Title\":\"The Purging of Kadillus\"}";
+        private const string ValidRequest = "{\"Title\":\"The Purging of Kadillus\",\"UserId\":\"12345\"}";
 
         [Theory, MemberData(nameof(InvalidRequests))]
         public async Task GivenAnInvalidRequest_WhenFunctionIsCalled_ThenBadRequestObjectResultIsReturned(string requestContent)
@@ -64,6 +64,11 @@ namespace Belial.Tests
             new object[] {"{\"Title\":\"\"}"},
             new object[] {"{\"Title\":\" \"}"},
             new object[] {"{\"Title\":null}"},
+            new object[] {"{\"Title\":null,\"UserId\":}"},
+            new object[] {"{\"Title\":\"\",\"UserId\":}"},
+            new object[] {"{\"Title\":\"The Purging of Kadillus\",\"UserId\":\"\"}"},
+            new object[] {"{\"Title\":\"The Purging of Kadillus\",\"UserId\":\" \"}"},
+            new object[] {"{\"Title\":\"The Purging of Kadillus\",\"UserId\":null}"},
             new object[] {"{\"BookName\":\"The Purging of Kadillus\"}"}
         };
     }
