@@ -2,20 +2,22 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Belial.Tests.Core;
 using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
 using Xunit;
 
 namespace Belial.Tests
 {
     public class ManualBookEntryTests
     {
-        private const string ValidRequest = "{\"Title\":\"The Purging of Kadillus\",\"UserId\":\"12345\"}";
+        private const string ValidRequest = "{\"Book\":{\"Title\":\"The Purging of Kadillus\"},\"UserId\":\"12345\"}";
+        private readonly BookEntryHttpMessage _validRequestPoco = JsonConvert.DeserializeObject<BookEntryHttpMessage>(ValidRequest);
 
         [Theory, MemberData(nameof(InvalidRequests))]
         public async Task GivenAnInvalidRequest_WhenFunctionIsCalled_ThenBadRequestObjectResultIsReturned(string requestContent)
         {
             var request = TestHelper.CreateRequest(requestContent);
 
-            var response = await Functions.ManualBookEntryFunction(request, new TestLogger(), new TestAsyncCollector<string>());
+            var response = await Functions.ManualBookEntryFunction(request, new TestLogger(), new TestAsyncCollector<BookEntryQueueMessage>());
 
             Assert.IsType<BadRequestObjectResult>(response);
         }
@@ -25,7 +27,7 @@ namespace Belial.Tests
         {
             var request = TestHelper.CreateRequest(ValidRequest);
 
-            var response = await Functions.ManualBookEntryFunction(request, new TestLogger(), new TestAsyncCollector<string>());
+            var response = await Functions.ManualBookEntryFunction(request, new TestLogger(), new TestAsyncCollector<BookEntryQueueMessage>());
 
             Assert.IsType<OkObjectResult>(response);
         }
@@ -33,7 +35,7 @@ namespace Belial.Tests
         [Theory, MemberData(nameof(InvalidRequests))]
         public async Task GivenAnInvalidRequest_WhenFunctionIsCalled_ThenBookEntryQueueIsNotPopulated(string requestContent)
         {
-            var queue = new TestAsyncCollector<string>();
+            var queue = new TestAsyncCollector<BookEntryQueueMessage>();
             var request = TestHelper.CreateRequest(requestContent);
 
             await Functions.ManualBookEntryFunction(request, new TestLogger(), queue);
@@ -44,12 +46,13 @@ namespace Belial.Tests
         [Fact]
         public async Task GivenAValidRequest_WhenFunctionIsCalled_ThenBookEntryQueueIsPopulated()
         {
-            var queue = new TestAsyncCollector<string>();
+            var queue = new TestAsyncCollector<BookEntryQueueMessage>();
             var request = TestHelper.CreateRequest(ValidRequest);
 
             await Functions.ManualBookEntryFunction(request, new TestLogger(), queue);
 
-            Assert.Equal(ValidRequest, queue.QueuedItems[0]);
+            Assert.Equal(_validRequestPoco.Book.Title, queue.QueuedItems[0].Book.Title);
+            Assert.Equal(_validRequestPoco.UserId, queue.QueuedItems[0].UserId);
         }
 
         public static IEnumerable<object[]> InvalidRequests => new[]

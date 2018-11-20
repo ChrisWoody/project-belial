@@ -21,24 +21,28 @@ namespace Belial
         public static async Task<IActionResult> ManualBookEntryFunction(
             [HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequest req,
             ILogger log,
-            [Queue(BookEntryQueueName)] IAsyncCollector<string> bookEntryQueue)
+            [Queue(BookEntryQueueName)] IAsyncCollector<BookEntryQueueMessage> bookEntryQueue)
         {
             log.LogInformation("Manual Book Entry function called");
 
             try
             {
                 var bookEntryRequest = await new StreamReader(req.Body).ReadToEndAsync();
-                var bookEntry = JsonConvert.DeserializeObject<BookEntry>(bookEntryRequest);
+                var bookEntry = JsonConvert.DeserializeObject<BookEntryHttpMessage>(bookEntryRequest);
 
-                if (string.IsNullOrWhiteSpace(bookEntry?.Title))
+                if (string.IsNullOrWhiteSpace(bookEntry?.Book?.Title))
                     return new BadRequestObjectResult("Invalid request to add book. 'Title' missing.");
 
                 if (string.IsNullOrWhiteSpace(bookEntry.UserId))
                     return new BadRequestObjectResult("Invalid request to add book. 'UserId' missing.");
 
-                await bookEntryQueue.AddAsync(bookEntryRequest);
+                await bookEntryQueue.AddAsync(new BookEntryQueueMessage
+                {
+                    Book = bookEntry.Book,
+                    UserId = bookEntry.UserId
+                });
 
-                return new OkObjectResult($"Valid request to add '{bookEntry.Title}'.");
+                return new OkObjectResult($"Valid request to add '{bookEntry.Book.Title}'.");
             }
             catch (Exception e)
             {
@@ -49,83 +53,96 @@ namespace Belial
 
         [FunctionName("ProcessBookEntryQueue")]
         public static async Task ProcessBookEntryQueueFunction(
-            [QueueTrigger(BookEntryQueueName)] string bookEntryQueueMessage,
+            [QueueTrigger(BookEntryQueueName)] BookEntryQueueMessage bookEntryQueueMessage,
             ILogger log,
-            [Queue(AddBookQueueName)] IAsyncCollector<string> addBookQueue,
-            [Queue(LinkUserToBookQueueName)] IAsyncCollector<string> linkUserToBookQueue)
+            [Queue(AddBookQueueName)] IAsyncCollector<AddBookQueueMessage> addBookQueue,
+            [Queue(LinkUserToBookQueueName)] IAsyncCollector<LinkUserToBookQueueMessage> linkUserToBookQueue)
         {
             log.LogInformation("Process Book Entry Queue function called");
 
-            var message = JsonConvert.DeserializeObject<BookEntry>(bookEntryQueueMessage);
-
-            await addBookQueue.AddAsync(JsonConvert.SerializeObject(message));
-
-            await linkUserToBookQueue.AddAsync(JsonConvert.SerializeObject(new LinkUserToBookQueueMessage
+            await addBookQueue.AddAsync(new AddBookQueueMessage
             {
-                UserId = message.UserId,
-                Title = message.Title
-            }));
+                Book = bookEntryQueueMessage.Book
+            });
+
+            await linkUserToBookQueue.AddAsync(new LinkUserToBookQueueMessage
+            {
+                UserId = bookEntryQueueMessage.UserId,
+                Book = bookEntryQueueMessage.Book
+            });
         }
 
         [FunctionName("ProcessAddBookQueue")]
         public static async Task ProcessAddBookQueueFunction(
-            [QueueTrigger(AddBookQueueName)] string addBookQueueMessage,
+            [QueueTrigger(AddBookQueueName)] AddBookQueueMessage addBookQueueMessage,
             ILogger log,
             [Table("book")] IAsyncCollector<BookTableEntity> bookTable)
         {
             log.LogInformation("Process Add Book Queue function called");
-
-            var bookEntry = JsonConvert.DeserializeObject<BookEntry>(addBookQueueMessage);
 
             // Assuming it doesn't exist for now
             await bookTable.AddAsync(new BookTableEntity
             {
                 PartitionKey = "0",
                 RowKey = "1234567",
-                Title = bookEntry.Title,
+                Title = addBookQueueMessage.Book.Title,
             });
         }
 
         [FunctionName("ProcessLinkUserToBookQueue")]
         public static async Task ProcessLinkUserToBookQueueFunction(
-            [QueueTrigger(LinkUserToBookQueueName)] string linkUserToBookQueueMessage,
+            [QueueTrigger(LinkUserToBookQueueName)] LinkUserToBookQueueMessage linkUserToBookQueueMessage,
             ILogger log,
             [Table("user-book")] IAsyncCollector<UserBookTableEntity> userBookTable)
         {
             log.LogInformation("Process Link User To Book Queue function called");
 
-            var linkUserToBook = JsonConvert.DeserializeObject<LinkUserToBookQueueMessage>(linkUserToBookQueueMessage);
-
             await userBookTable.AddAsync(new UserBookTableEntity
             {
                 PartitionKey = "0",
                 RowKey = "123456",
-                Title = linkUserToBook.Title,
-                UserId = linkUserToBook.UserId
+                Book = linkUserToBookQueueMessage.Book,
+                UserId = linkUserToBookQueueMessage.UserId
             });
         }
     }
 
-    public class BookEntry
+    public class Book
     {
         public string Title { get; set; }
+    }
+
+    public class BookEntryHttpMessage
+    {
+        public Book Book { get; set; }
         public string UserId { get; set; }
     }
 
-    public class BookTableEntity : TableEntity
+    public class BookEntryQueueMessage
     {
-        public string Title { get; set; }
+        public Book Book { get; set; }
+        public string UserId { get; set; }
+    }
+
+    public class AddBookQueueMessage
+    {
+        public Book Book { get; set; }
     }
 
     public class LinkUserToBookQueueMessage
     {
-        public string Title { get; set; }
+        public Book Book { get; set; }
         public string UserId { get; set; }
+    }
+    
+    public class BookTableEntity : TableEntity // to consider, have this inherit Book and just define PartitionKey and RowKey
+    {
+        public string Title { get; set; }
     }
 
     public class UserBookTableEntity : TableEntity
     {
-        public string Title { get; set; }
+        public Book Book { get; set; }
         public string UserId { get; set; }
     }
 }
