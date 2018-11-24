@@ -9,7 +9,7 @@ namespace Belial.Tests
 {
     public class ManualBookEntryTests
     {
-        private const string ValidRequest = "{\"Book\":{\"Title\":\"The Purging of Kadillus\"},\"UserId\":\"12345\"}";
+        private const string ValidRequest = "{\"Book\":{\"Title\":\"The Purging of Kadillus\"},\"UserId\":\"12345\",\"ImageUrl\":\"https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg\"}";
         private readonly BookEntryHttpMessage _validRequestPoco = JsonConvert.DeserializeObject<BookEntryHttpMessage>(ValidRequest);
 
         [Theory, MemberData(nameof(InvalidRequests))]
@@ -53,6 +53,7 @@ namespace Belial.Tests
 
             Assert.Equal(_validRequestPoco.Book.Title, queue.QueuedItems[0].Book.Title);
             Assert.Equal(_validRequestPoco.UserId, queue.QueuedItems[0].UserId);
+            Assert.Equal(_validRequestPoco.ImageUrl, queue.QueuedItems[0].ImageUrl);
         }
 
         public static IEnumerable<object[]> InvalidRequests => new[]
@@ -61,18 +62,14 @@ namespace Belial.Tests
             new object[] {""},
             new object[] {" "},
             new object[] {"{"},
-            new object[] {"{Title}"},
-            new object[] {"{\"Title\"}"},
-            new object[] {"{\"Title\":The Purging of Kadillus\"}"},
-            new object[] {"{\"Title\":\"\"}"},
-            new object[] {"{\"Title\":\" \"}"},
-            new object[] {"{\"Title\":null}"},
-            new object[] {"{\"Title\":null,\"UserId\":}"},
-            new object[] {"{\"Title\":\"\",\"UserId\":}"},
-            new object[] {"{\"Title\":\"The Purging of Kadillus\",\"UserId\":\"\"}"},
-            new object[] {"{\"Title\":\"The Purging of Kadillus\",\"UserId\":\" \"}"},
-            new object[] {"{\"Title\":\"The Purging of Kadillus\",\"UserId\":null}"},
-            new object[] {"{\"BookName\":\"The Purging of Kadillus\"}"}
+            new object[] {"{asdaf}"},
+            new object[]{"{\"Book\":{\"Title\":\"\"},\"UserId\":\"\",\"ImageUrl\":\"\"}"}, 
+            new object[]{"{\"Book\":{\"Title\":\"The Purging of Kadillus\"},\"UserId\":\"\",\"ImageUrl\":\"\"}"}, 
+            new object[]{"{\"Book\":{\"Title\":\"The Purging of Kadillus\"},\"UserId\":\"12345\",\"ImageUrl\":\"\"}"}, 
+            new object[]{"{\"Book\":{\"Title\":\"The Purging of Kadillus\"},\"UserId\":\"\",\"ImageUrl\":\"https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg\"}"}, 
+            new object[]{"{\"Book\":{\"Title\":\"\"},\"UserId\":\"12345\",\"ImageUrl\":\"https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg\"}"}, 
+            new object[]{"{\"Book\":{\"Title\":\"\"},\"UserId\":\"\",\"ImageUrl\":\"https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg\"}"}, 
+            // to consider, validate the url
         };
     }
 }

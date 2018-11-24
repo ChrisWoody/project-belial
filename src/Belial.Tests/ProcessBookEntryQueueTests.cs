@@ -12,7 +12,8 @@ namespace Belial.Tests
             {
                 Title = "The Purging of Kadillus",
             },
-            UserId = "12345"
+            UserId = "12345",
+            ImageUrl = "https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg"
         };
 
         [Fact]
@@ -24,6 +25,7 @@ namespace Belial.Tests
             await Functions.ProcessBookEntryQueueFunction(_bookEntryQueueMessage, new TestLogger(), addBookQueue, linkUserToBookQueue);
 
             Assert.Equal(_bookEntryQueueMessage.Book.Title, addBookQueue.QueuedItems[0].Book.Title);
+            Assert.Equal(_bookEntryQueueMessage.ImageUrl, addBookQueue.QueuedItems[0].ImageUrl);
         }
 
         [Fact]

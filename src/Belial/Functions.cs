@@ -16,6 +16,7 @@ namespace Belial
         private const string BookEntryQueueName = "book-entry-queue";
         private const string AddBookQueueName = "add-book-queue";
         private const string LinkUserToBookQueueName = "link-user-to-book-queue";
+        private const string DownloadBookImageQueueName = "download-book-image-queue";
 
         [FunctionName("ManualBookEntry")]
         public static async Task<IActionResult> ManualBookEntryFunction(
@@ -36,10 +37,14 @@ namespace Belial
                 if (string.IsNullOrWhiteSpace(bookEntry.UserId))
                     return new BadRequestObjectResult("Invalid request to add book. 'UserId' missing.");
 
+                if (string.IsNullOrWhiteSpace(bookEntry.ImageUrl))
+                    return new BadRequestObjectResult("Invalid request to add book. 'ImageUrl' missing.");
+
                 await bookEntryQueue.AddAsync(new BookEntryQueueMessage
                 {
                     Book = bookEntry.Book,
-                    UserId = bookEntry.UserId
+                    UserId = bookEntry.UserId,
+                    ImageUrl = bookEntry.ImageUrl
                 });
 
                 return new OkObjectResult($"Valid request to add '{bookEntry.Book.Title}'.");
@@ -62,7 +67,8 @@ namespace Belial
 
             await addBookQueue.AddAsync(new AddBookQueueMessage
             {
-                Book = bookEntryQueueMessage.Book
+                Book = bookEntryQueueMessage.Book,
+                ImageUrl = bookEntryQueueMessage.ImageUrl
             });
 
             await linkUserToBookQueue.AddAsync(new LinkUserToBookQueueMessage
@@ -76,7 +82,8 @@ namespace Belial
         public static async Task ProcessAddBookQueueFunction(
             [QueueTrigger(AddBookQueueName)] AddBookQueueMessage addBookQueueMessage,
             ILogger log,
-            [Table("book")] IAsyncCollector<BookTableEntity> bookTable)
+            [Table("book")] IAsyncCollector<BookTableEntity> bookTable,
+            [Queue(DownloadBookImageQueueName)] IAsyncCollector<DownloadBookImageQueueMessage> downloadBookImageQueue)
         {
             log.LogInformation("Process Add Book Queue function called");
 
@@ -86,6 +93,12 @@ namespace Belial
                 PartitionKey = "0",
                 RowKey = "1234567",
                 Title = addBookQueueMessage.Book.Title,
+            });
+
+            await downloadBookImageQueue.AddAsync(new DownloadBookImageQueueMessage
+            {
+                Title = addBookQueueMessage.Book.Title,
+                ImageUrl = addBookQueueMessage.ImageUrl
             });
         }
 
@@ -105,6 +118,21 @@ namespace Belial
                 UserId = linkUserToBookQueueMessage.UserId
             });
         }
+
+        [FunctionName("ProcessDownloadBookImageQueue")]
+        public static async Task ProcessDownloadBookImageQueueFunction(
+            [QueueTrigger(DownloadBookImageQueueName)] DownloadBookImageQueueMessage downloadBookImageQueueMessage,
+            ILogger log,
+            [Table("book-image")] IAsyncCollector<BookImageTableEntity> bookImageTable)
+        {
+            log.LogInformation("Process Download Book Image Queue function called");
+
+            await bookImageTable.AddAsync(new BookImageTableEntity
+            {
+                PartitionKey = "0",
+                RowKey = "123456",
+            });
+        }
     }
 
     public class Book
@@ -116,17 +144,20 @@ namespace Belial
     {
         public Book Book { get; set; }
         public string UserId { get; set; }
+        public string ImageUrl { get; set; }
     }
 
     public class BookEntryQueueMessage
     {
         public Book Book { get; set; }
         public string UserId { get; set; }
+        public string ImageUrl { get; set; }
     }
 
     public class AddBookQueueMessage
     {
         public Book Book { get; set; }
+        public string ImageUrl { get; set; }
     }
 
     public class LinkUserToBookQueueMessage
@@ -144,5 +175,16 @@ namespace Belial
     {
         public Book Book { get; set; }
         public string UserId { get; set; }
+    }
+
+    public class DownloadBookImageQueueMessage
+    {
+        public string Title { get; set; } // the 'id' for now
+        public string ImageUrl { get; set; }
+    }
+
+    public class BookImageTableEntity : TableEntity
+    {
+        
     }
 }
