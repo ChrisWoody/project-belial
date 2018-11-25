@@ -1,5 +1,9 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Linq.Expressions;
+using System.Threading.Tasks;
 using Belial.Tests.Core;
+using Microsoft.WindowsAzure.Storage.Table;
+using Moq;
 using Xunit;
 
 namespace Belial.Tests
@@ -18,23 +22,33 @@ namespace Belial.Tests
         [Fact]
         public async Task GivenMessageFromAddBookQueue_WhenProcessAddBookQueue_ThenBookAddedToBookTable()
         {
-            var bookTable = new TestAsyncCollector<BookTableEntity>();
+            var bookTable = new Mock<CloudTable>(new Uri("https://testurl.com"));
             var downloadBookImageQueue = new TestAsyncCollector<DownloadBookImageQueueMessage>();
 
-            await Functions.ProcessAddBookQueueFunction(_addBookQueueMessage, new TestLogger(), bookTable, downloadBookImageQueue);
+            await Functions.ProcessAddBookQueueFunction(_addBookQueueMessage, new TestLogger(), bookTable.Object, downloadBookImageQueue);
 
-            Assert.Equal(_addBookQueueMessage.Book.Title, bookTable.QueuedItems[0].Title);
+            bookTable.VerifyExecuteAsync(e => e.OperationType == TableOperationType.InsertOrReplace);
+            bookTable.VerifyExecuteAsync(e => e.Entity is BookTableEntity);
+            bookTable.VerifyExecuteAsync(e => ((BookTableEntity) e.Entity).Title == _addBookQueueMessage.Book.Title);
         }
 
         [Fact]
         public async Task GivenMessageFromAddBookQueue_WhenProcessAddBookQueue_ThenDownloadBookImageMessageAddedToQueue()
         {
-            var bookTable = new TestAsyncCollector<BookTableEntity>();
+            var bookTable = new Mock<CloudTable>(new Uri("https://testurl.com"));
             var downloadBookImageQueue = new TestAsyncCollector<DownloadBookImageQueueMessage>();
 
-            await Functions.ProcessAddBookQueueFunction(_addBookQueueMessage, new TestLogger(), bookTable, downloadBookImageQueue);
+            await Functions.ProcessAddBookQueueFunction(_addBookQueueMessage, new TestLogger(), bookTable.Object, downloadBookImageQueue);
 
             Assert.Equal(_addBookQueueMessage.ImageUrl, downloadBookImageQueue.QueuedItems[0].ImageUrl);
+        }
+    }
+
+    public static class TestEx
+    {
+        public static void VerifyExecuteAsync(this Mock<CloudTable> mock, Expression<Func<TableOperation, bool>> verifyFunc)
+        {
+            mock.Verify(x => x.ExecuteAsync(It.Is(verifyFunc)));
         }
     }
 }

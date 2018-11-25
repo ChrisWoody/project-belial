@@ -84,18 +84,18 @@ namespace Belial
         public static async Task ProcessAddBookQueueFunction(
             [QueueTrigger(AddBookQueueName)] AddBookQueueMessage addBookQueueMessage,
             ILogger log,
-            [Table("book")] IAsyncCollector<BookTableEntity> bookTable,
+            [Table("book")] CloudTable bookTable,
             [Queue(DownloadBookImageQueueName)] IAsyncCollector<DownloadBookImageQueueMessage> downloadBookImageQueue)
         {
             log.LogInformation("Process Add Book Queue function called");
 
-            // Assuming it doesn't exist for now
-            await bookTable.AddAsync(new BookTableEntity
+            var upsertBookOp = TableOperation.InsertOrReplace(new BookTableEntity
             {
-                PartitionKey = "0",
-                RowKey = "1234567",
-                Title = addBookQueueMessage.Book.Title,
+                PartitionKey = "1234",
+                RowKey = addBookQueueMessage.Book.Title,
+                Title = addBookQueueMessage.Book.Title
             });
+            await bookTable.ExecuteAsync(upsertBookOp);
 
             await downloadBookImageQueue.AddAsync(new DownloadBookImageQueueMessage
             {
@@ -109,17 +109,18 @@ namespace Belial
         public static async Task ProcessLinkUserToBookQueueFunction(
             [QueueTrigger(LinkUserToBookQueueName)] LinkUserToBookQueueMessage linkUserToBookQueueMessage,
             ILogger log,
-            [Table("userbook")] IAsyncCollector<UserBookTableEntity> userBookTable)
+            [Table("userbook")] CloudTable userBookTable)
         {
             log.LogInformation("Process Link User To Book Queue function called");
 
-            await userBookTable.AddAsync(new UserBookTableEntity
+            var upsertUserBookOp = TableOperation.InsertOrReplace(new UserBookTableEntity
             {
-                PartitionKey = "0",
+                PartitionKey = "1234",
                 RowKey = "123456",
                 Book = linkUserToBookQueueMessage.Book,
                 UserId = linkUserToBookQueueMessage.UserId
             });
+            await userBookTable.ExecuteAsync(upsertUserBookOp);
         }
 
         internal static IStreamProvider StreamProvider = new StreamProvider();
@@ -128,7 +129,7 @@ namespace Belial
         public static async Task ProcessDownloadBookImageQueueFunction(
             [QueueTrigger(DownloadBookImageQueueName)] DownloadBookImageQueueMessage downloadBookImageQueueMessage,
             ILogger log,
-            [Table("bookimage")] IAsyncCollector<BookImageTableEntity> bookImageTable,
+            [Table("bookimage")] CloudTable bookImageTable,
             [Blob("image-original/{Filename}", FileAccess.Write)] Stream imageBlobStream)
         {
             log.LogInformation("Process Download Book Image Queue function called");
@@ -136,12 +137,13 @@ namespace Belial
 
             await imageStream.CopyToAsync(imageBlobStream);
 
-            await bookImageTable.AddAsync(new BookImageTableEntity
+            var upsertBookImageOp = TableOperation.InsertOrReplace(new BookImageTableEntity
             {
                 PartitionKey = "0",
                 RowKey = "123456",
                 FullImageBlobPath = $"image-original/{downloadBookImageQueueMessage.Filename}"
             });
+            await bookImageTable.ExecuteAsync(upsertBookImageOp);
         }
     }
 

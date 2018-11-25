@@ -1,5 +1,8 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using Belial.Tests.Core;
+using Microsoft.WindowsAzure.Storage.Table;
+using Moq;
 using Xunit;
 
 namespace Belial.Tests
@@ -18,12 +21,14 @@ namespace Belial.Tests
         [Fact]
         public async Task GivenMessageFromLinkUserToBookQueue_WhenProcessLinkUserToBookQueue_ThenUserBookAddedToUserBookTable()
         {
-            var userToBookTable = new TestAsyncCollector<UserBookTableEntity>();
+            var userToBookTable = new Mock<CloudTable>(new Uri("https://testurl.com"));
 
-            await Functions.ProcessLinkUserToBookQueueFunction(_linkUserToBookQueueMessage, new TestLogger(), userToBookTable);
+            await Functions.ProcessLinkUserToBookQueueFunction(_linkUserToBookQueueMessage, new TestLogger(), userToBookTable.Object);
 
-            Assert.Equal("The Purging of Kadillus", userToBookTable.QueuedItems[0].Book.Title);
-            Assert.Equal("12345", userToBookTable.QueuedItems[0].UserId);
+            userToBookTable.VerifyExecuteAsync(e => e.OperationType == TableOperationType.InsertOrReplace);
+            userToBookTable.VerifyExecuteAsync(e => e.Entity is UserBookTableEntity);
+            userToBookTable.VerifyExecuteAsync(e => ((UserBookTableEntity) e.Entity).UserId == _linkUserToBookQueueMessage.UserId);
+            userToBookTable.VerifyExecuteAsync(e => ((UserBookTableEntity) e.Entity).Book.Title == _linkUserToBookQueueMessage.Book.Title);
         }
     }
 }
