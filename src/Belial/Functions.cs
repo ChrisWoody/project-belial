@@ -109,7 +109,7 @@ namespace Belial
         public static async Task ProcessLinkUserToBookQueueFunction(
             [QueueTrigger(LinkUserToBookQueueName)] LinkUserToBookQueueMessage linkUserToBookQueueMessage,
             ILogger log,
-            [Table("user-book")] IAsyncCollector<UserBookTableEntity> userBookTable)
+            [Table("userbook")] IAsyncCollector<UserBookTableEntity> userBookTable)
         {
             log.LogInformation("Process Link User To Book Queue function called");
 
@@ -128,7 +128,7 @@ namespace Belial
         public static async Task ProcessDownloadBookImageQueueFunction(
             [QueueTrigger(DownloadBookImageQueueName)] DownloadBookImageQueueMessage downloadBookImageQueueMessage,
             ILogger log,
-            [Table("book-image")] IAsyncCollector<BookImageTableEntity> bookImageTable,
+            [Table("bookimage")] IAsyncCollector<BookImageTableEntity> bookImageTable,
             [Blob("image-original/{Filename}", FileAccess.Write)] Stream imageBlobStream)
         {
             log.LogInformation("Process Download Book Image Queue function called");
