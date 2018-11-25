@@ -1,11 +1,13 @@
 using System;
 using System.IO;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.WindowsAzure.Storage.Blob;
 using Microsoft.WindowsAzure.Storage.Table;
 using Newtonsoft.Json;
 
@@ -98,7 +100,8 @@ namespace Belial
             await downloadBookImageQueue.AddAsync(new DownloadBookImageQueueMessage
             {
                 Title = addBookQueueMessage.Book.Title,
-                ImageUrl = addBookQueueMessage.ImageUrl
+                ImageUrl = addBookQueueMessage.ImageUrl,
+                Filename = $"{Guid.NewGuid()}.jpg"
             });
         }
 
@@ -119,18 +122,25 @@ namespace Belial
             });
         }
 
+        internal static IStreamProvider StreamProvider = new StreamProvider();
+
         [FunctionName("ProcessDownloadBookImageQueue")]
         public static async Task ProcessDownloadBookImageQueueFunction(
             [QueueTrigger(DownloadBookImageQueueName)] DownloadBookImageQueueMessage downloadBookImageQueueMessage,
             ILogger log,
-            [Table("book-image")] IAsyncCollector<BookImageTableEntity> bookImageTable)
+            [Table("book-image")] IAsyncCollector<BookImageTableEntity> bookImageTable,
+            [Blob("image-original/{Filename}", FileAccess.Write)] Stream imageBlobStream)
         {
             log.LogInformation("Process Download Book Image Queue function called");
+            var imageStream = await StreamProvider.GetStreamAsync(downloadBookImageQueueMessage.ImageUrl);
+
+            await imageStream.CopyToAsync(imageBlobStream);
 
             await bookImageTable.AddAsync(new BookImageTableEntity
             {
                 PartitionKey = "0",
                 RowKey = "123456",
+                FullImageBlobPath = $"image-original/{downloadBookImageQueueMessage.Filename}"
             });
         }
     }
@@ -181,10 +191,27 @@ namespace Belial
     {
         public string Title { get; set; } // the 'id' for now
         public string ImageUrl { get; set; }
+        public string Filename { get; set; }
     }
 
     public class BookImageTableEntity : TableEntity
     {
-        
+        public string FullImageBlobPath { get; set; }
+    }
+
+    public class StreamProvider : IStreamProvider
+    {
+        public async Task<Stream> GetStreamAsync(string url)
+        {
+            var httpClient = new HttpClient();
+            
+            var response = await httpClient.GetAsync(url);
+            return await response.Content.ReadAsStreamAsync();
+        }
+    }
+
+    public interface IStreamProvider
+    {
+        Task<Stream> GetStreamAsync(string url);
     }
 }
