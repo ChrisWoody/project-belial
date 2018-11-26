@@ -16,9 +16,10 @@ async Task Main()
     {
         Book = new Book
         {
+            Isbn = "9781844168965",
             Title = "The Purging of Kadillus"
         },
-        UserId = "1234",
+        UserId = Guid.Parse("63CDBDDD-CE8C-411D-BA1E-0174FA19C05C"),
         ImageUrl = "https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg"
     };
     var responseContent = new StringContent(JsonConvert.SerializeObject(bookEntry).Dump(), Encoding.UTF8, "application/json");
