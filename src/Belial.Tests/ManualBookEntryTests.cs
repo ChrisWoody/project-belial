@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using Belial.Tests.Core;
 using Microsoft.AspNetCore.Mvc;
@@ -15,6 +17,8 @@ namespace Belial.Tests
         [Theory, MemberData(nameof(InvalidRequests))]
         public async Task GivenAnInvalidRequest_WhenFunctionIsCalled_ThenBadRequestObjectResultIsReturned(string requestContent)
         {
+            Trace.WriteLine(requestContent);
+            Console.WriteLine(requestContent);
             var request = TestHelper.CreateRequest(requestContent);
 
             var response = await Functions.ManualBookEntryFunction(request, new TestLogger(), new TestAsyncCollector<BookEntryQueueMessage>());
