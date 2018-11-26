@@ -9,7 +9,7 @@ namespace Belial.Tests
 {
     public class ManualBookEntryTests
     {
-        private const string ValidRequest = "{\"Book\":{\"Title\":\"The Purging of Kadillus\"},\"UserId\":\"12345\",\"ImageUrl\":\"https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg\"}";
+        private const string ValidRequest = "{\"Book\":{\"Isbn\":\"9781844168965\",\"Title\":\"The Purging of Kadillus\"},\"UserId\":\"63CDBDDD-CE8C-411D-BA1E-0174FA19C05C\",\"ImageUrl\":\"https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg\"}";
         private readonly BookEntryHttpMessage _validRequestPoco = JsonConvert.DeserializeObject<BookEntryHttpMessage>(ValidRequest);
 
         [Theory, MemberData(nameof(InvalidRequests))]
@@ -63,12 +63,14 @@ namespace Belial.Tests
             new object[] {" "},
             new object[] {"{"},
             new object[] {"{asdaf}"},
-            new object[]{"{\"Book\":{\"Title\":\"\"},\"UserId\":\"\",\"ImageUrl\":\"\"}"}, 
-            new object[]{"{\"Book\":{\"Title\":\"The Purging of Kadillus\"},\"UserId\":\"\",\"ImageUrl\":\"\"}"}, 
-            new object[]{"{\"Book\":{\"Title\":\"The Purging of Kadillus\"},\"UserId\":\"12345\",\"ImageUrl\":\"\"}"}, 
-            new object[]{"{\"Book\":{\"Title\":\"The Purging of Kadillus\"},\"UserId\":\"\",\"ImageUrl\":\"https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg\"}"}, 
-            new object[]{"{\"Book\":{\"Title\":\"\"},\"UserId\":\"12345\",\"ImageUrl\":\"https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg\"}"}, 
-            new object[]{"{\"Book\":{\"Title\":\"\"},\"UserId\":\"\",\"ImageUrl\":\"https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg\"}"}, 
+            new object[]{"{\"Book\":{\"Isbn\":\"\",\"Title\":\"\"},\"UserId\":\"\",\"ImageUrl\":\"\"}"},
+            new object[]{"{\"Book\":{\"Isbn\":\"9781844168965\",\"Title\":\"The Purging of Kadillus\"},\"UserId\":\"\",\"ImageUrl\":\"\"}"},
+            new object[]{"{\"Book\":{\"Isbn\":\"9781844168965\",\"Title\":\"The Purging of Kadillus\"},\"UserId\":\"63CDBDDD-CE8C-411D-BA1E-0174FA19C05C\",\"ImageUrl\":\"\"}"},
+            new object[]{"{\"Book\":{\"Isbn\":\"9781844168965\",\"Title\":\"The Purging of Kadillus\"},\"UserId\":\"63CDBDDD-CE8C-411D-BA1E-0174FA19C05C\",\"ImageUrl\":\"https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg\"}"},
+            new object[]{"{\"Book\":{\"Isbn\":\"\",\"Title\":\"The Purging of Kadillus\"},\"UserId\":\"63CDBDDD-CE8C-411D-BA1E-0174FA19C05C\",\"ImageUrl\":\"https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg\"}"},
+            new object[]{"{\"Book\":{\"Isbn\":\"9781844168965\",\"Title\":\"\"},\"UserId\":\"63CDBDDD-CE8C-411D-BA1E-0174FA19C05C\",\"ImageUrl\":\"https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg\"}"},
+            new object[]{"{\"Book\":{\"Isbn\":\"9781844168965\",\"Title\":\"\"},\"UserId\":\"\",\"ImageUrl\":\"https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg\"}"},
+            new object[]{"{\"Book\":{\"Isbn\":\"\",\"Title\":\"\"},\"UserId\":\"63CDBDDD-CE8C-411D-BA1E-0174FA19C05C\",\"ImageUrl\":\"https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg\"}"},
             // to consider, validate the url
         };
     }

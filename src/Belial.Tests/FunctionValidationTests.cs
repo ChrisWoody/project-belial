@@ -57,7 +57,8 @@ namespace Belial.Tests
 
                     if (parameters.Any(p =>
                         p.GetCustomAttribute<QueueAttribute>() != null ||
-                        p.GetCustomAttribute<TableAttribute>() != null))
+                        p.GetCustomAttribute<TableAttribute>() != null ||
+                        p.GetCustomAttribute<BlobAttribute>() != null))
                         return null;
 
                     return x.Name;

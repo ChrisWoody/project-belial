@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using Belial.Tests.Core;
 using Xunit;
 
@@ -12,7 +13,7 @@ namespace Belial.Tests
             {
                 Title = "The Purging of Kadillus",
             },
-            UserId = "12345",
+            UserId = Guid.Parse("63CDBDDD-CE8C-411D-BA1E-0174FA19C05C"),
             ImageUrl = "https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg"
         };
 
@@ -20,24 +21,12 @@ namespace Belial.Tests
         public async Task GivenMessageFromBookEntryQueue_WhenProcessBookEntryQueue_ThenMessagePushedToAddBookQueue()
         {
             var addBookQueue = new TestAsyncCollector<AddBookQueueMessage>();
-            var linkUserToBookQueue = new TestAsyncCollector<LinkUserToBookQueueMessage>();
 
-            await Functions.ProcessBookEntryQueueFunction(_bookEntryQueueMessage, new TestLogger(), addBookQueue, linkUserToBookQueue);
+            await Functions.ProcessBookEntryQueueFunction(_bookEntryQueueMessage, new TestLogger(), addBookQueue);
 
             Assert.Equal(_bookEntryQueueMessage.Book.Title, addBookQueue.QueuedItems[0].Book.Title);
+            Assert.Equal(_bookEntryQueueMessage.UserId, addBookQueue.QueuedItems[0].UserId);
             Assert.Equal(_bookEntryQueueMessage.ImageUrl, addBookQueue.QueuedItems[0].ImageUrl);
-        }
-
-        [Fact]
-        public async Task GivenMessageFromBookEntryQueue_WhenProcessBookEntryQueue_ThenMessagePushedToLinkToUserBookQueue()
-        {
-            var addBookQueue = new TestAsyncCollector<AddBookQueueMessage>();
-            var linkUserToBookQueue = new TestAsyncCollector<LinkUserToBookQueueMessage>();
-
-            await Functions.ProcessBookEntryQueueFunction(_bookEntryQueueMessage, new TestLogger(), addBookQueue, linkUserToBookQueue);
-
-            Assert.Equal(_bookEntryQueueMessage.Book.Title, linkUserToBookQueue.QueuedItems[0].Book.Title);
-            Assert.Equal(_bookEntryQueueMessage.UserId, linkUserToBookQueue.QueuedItems[0].UserId);
         }
     }
 }
