@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Threading.Tasks;
 using Belial.Tests.Core;
 using Microsoft.AspNetCore.Mvc;
@@ -17,8 +15,6 @@ namespace Belial.Tests
         [Theory, MemberData(nameof(InvalidRequests))]
         public async Task GivenAnInvalidRequest_WhenFunctionIsCalled_ThenBadRequestObjectResultIsReturned(string requestContent)
         {
-            Trace.WriteLine(requestContent);
-            Console.WriteLine(requestContent);
             var request = TestHelper.CreateRequest(requestContent);
 
             var response = await Functions.ManualBookEntryFunction(request, new TestLogger(), new TestAsyncCollector<BookEntryQueueMessage>());
@@ -68,14 +64,13 @@ namespace Belial.Tests
             new object[] {"{"},
             new object[] {"{asdaf}"},
             new object[]{"{\"Book\":{\"Isbn\":\"\",\"Title\":\"\"},\"UserId\":\"\",\"ImageUrl\":\"\"}"},
+            new object[]{"{\"Book\":{\"Isbn\":\"\",\"Title\":\"The Purging of Kadillus\"},\"UserId\":\"63CDBDDD-CE8C-411D-BA1E-0174FA19C05C\",\"ImageUrl\":\"https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg \"}"},
+            new object[]{"{\"Book\":{\"Isbn\":\"9781844168965\",\"Title\":\"\"},\"UserId\":\"\",\"ImageUrl\":\"https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg \"}"},
+
             new object[]{"{\"Book\":{\"Isbn\":\"9781844168965\",\"Title\":\"The Purging of Kadillus\"},\"UserId\":\"\",\"ImageUrl\":\"\"}"},
             new object[]{"{\"Book\":{\"Isbn\":\"9781844168965\",\"Title\":\"The Purging of Kadillus\"},\"UserId\":\"63CDBDDD-CE8C-411D-BA1E-0174FA19C05C\",\"ImageUrl\":\"\"}"},
-            new object[]{"{\"Book\":{\"Isbn\":\"9781844168965\",\"Title\":\"The Purging of Kadillus\"},\"UserId\":\"63CDBDDD-CE8C-411D-BA1E-0174FA19C05C\",\"ImageUrl\":\"https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg\"}"},
-            new object[]{"{\"Book\":{\"Isbn\":\"\",\"Title\":\"The Purging of Kadillus\"},\"UserId\":\"63CDBDDD-CE8C-411D-BA1E-0174FA19C05C\",\"ImageUrl\":\"https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg\"}"},
-            new object[]{"{\"Book\":{\"Isbn\":\"9781844168965\",\"Title\":\"\"},\"UserId\":\"63CDBDDD-CE8C-411D-BA1E-0174FA19C05C\",\"ImageUrl\":\"https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg\"}"},
-            new object[]{"{\"Book\":{\"Isbn\":\"9781844168965\",\"Title\":\"\"},\"UserId\":\"\",\"ImageUrl\":\"https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg\"}"},
-            new object[]{"{\"Book\":{\"Isbn\":\"\",\"Title\":\"\"},\"UserId\":\"63CDBDDD-CE8C-411D-BA1E-0174FA19C05C\",\"ImageUrl\":\"https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg\"}"},
-            // to consider, validate the url
+            new object[]{"{\"Book\":{\"Isbn\":\"9781844168965\",\"Title\":\"\"},\"UserId\":\"63CDBDDD-CE8C-411D-BA1E-0174FA19C05C\",\"ImageUrl\":\"https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg \"}"},
+            new object[]{"{\"Book\":{\"Isbn\":\"\",\"Title\":\"\"},\"UserId\":\"63CDBDDD-CE8C-411D-BA1E-0174FA19C05C\",\"ImageUrl\":\"https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg \"}"},
         };
     }
 }
