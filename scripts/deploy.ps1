@@ -26,7 +26,8 @@ try {
     "-retryAttempts:5 -retryInterval:5000 -verbose"
     
     $commandLine = '&"C:\Program Files\IIS\Microsoft Web Deploy V3\msdeploy.exe" --% ' + $msDeployArgs
-    Invoke-Expression $commandLine
+    $result = Invoke-Expression $commandLine
+    Write-Host "Web Deploy result: $result"
 
     exit 0
 }
