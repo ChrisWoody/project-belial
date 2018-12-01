@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -7,6 +9,7 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Table;
 using Newtonsoft.Json;
 
@@ -57,6 +60,65 @@ namespace Belial
                 log.LogError(e, "An error occured");
                 return new BadRequestObjectResult("An unknown error occured processing request");
             }
+        }
+
+        [FunctionName("GetBooksForUser")]
+        public static async Task<IActionResult> GetBooksForUserFunction(
+            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "GetBooksForUser/{userId}")] HttpRequest req,
+            string userId,
+            ILogger log,
+            [Table("book")] CloudTable bookTable)
+        {
+            log.LogInformation("Get Books For User function called");
+            
+            try
+            {
+                if (!Guid.TryParse(userId, out _))
+                    return new BadRequestObjectResult("Invalid request get user books. 'userId' is empty.");
+
+                var connection = Environment.GetEnvironmentVariable("AzureWebJobsStorage");
+                var blobEndpoint = CloudStorageAccount.Parse(connection).BlobEndpoint.ToString();
+
+                var books = await GetBookTableEntitiesForUser(bookTable, userId);
+                var booksWithImage = books.Select(b => new BookWithImage
+                {
+                    Isbn = b.Isbn,
+                    Title = b.Title,
+                    FullImageUrl = $"{blobEndpoint}/image-original/{b.ImageFilename}"
+                });
+
+                var response = new BooksForUser
+                {
+                    Books = booksWithImage.ToArray()
+                };
+
+                return new OkObjectResult(JsonConvert.SerializeObject(response));
+            }
+            catch (Exception e)
+            {
+                log.LogError(e, "An error occured");
+                return new BadRequestObjectResult("An unknown error occurred processing request");
+            }
+        }
+
+        private static async Task<List<BookTableEntity>> GetBookTableEntitiesForUser(CloudTable bookTable,
+            string userId)
+        {
+            var query = new TableQuery<BookTableEntity>().Where(
+                TableQuery.GenerateFilterCondition("PartitionKey", QueryComparisons.Equal, userId));
+
+            var books = new List<BookTableEntity>();
+            TableContinuationToken token = null;
+
+            do
+            {
+                var queryResult = await bookTable.ExecuteQuerySegmentedAsync(query, token);
+                token = queryResult.ContinuationToken;
+
+                books.AddRange(queryResult.Results);
+            } while (token != null);
+
+            return books;
         }
 
         [FunctionName("ProcessBookEntryQueue")]
@@ -132,6 +194,21 @@ namespace Belial
         public string ImageUrl { get; set; }
     }
 
+    public class GetBooksForUserHttpMessage
+    {
+        public Guid UserId { get; set; }
+    }
+
+    public class BooksForUser
+    {
+        public BookWithImage[] Books { get; set; }
+    }
+
+    public class BookWithImage : Book
+    {
+        public string FullImageUrl { get; set; }
+    }
+
     public class BookEntryQueueMessage
     {
         public Book Book { get; set; }
@@ -146,7 +223,7 @@ namespace Belial
         public string ImageUrl { get; set; }
     }
 
-    public class BookTableEntity : TableEntity // to consider, have this inherit Book and just define PartitionKey and RowKey
+    public class BookTableEntity : TableEntity
     {
         public string Isbn { get; set; }
         public string Title { get; set; }
