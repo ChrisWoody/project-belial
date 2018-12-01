@@ -28,9 +28,9 @@ try {
     $commandLine = '&"C:\Program Files\IIS\Microsoft Web Deploy V3\msdeploy.exe" --% ' + $msDeployArgs
     $result = Invoke-Expression $commandLine
     Write-Host $result
-    if ($result -notlike '*The synchronization completed*') {
-        exit 1
-    }
+    #if ($result -notlike '*The synchronization completed*') {
+    #    exit 1
+    #}
 
     exit 0
 }
