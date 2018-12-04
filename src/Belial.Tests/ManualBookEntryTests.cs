@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Belial.Common;
 using Belial.Tests.Core;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;

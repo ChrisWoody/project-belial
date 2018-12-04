@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
+using Belial.Common;
 using Belial.Tests.Core;
 using Microsoft.WindowsAzure.Storage.Table;
 using Moq;

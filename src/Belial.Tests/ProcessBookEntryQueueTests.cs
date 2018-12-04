@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using Belial.Common;
 using Belial.Tests.Core;
 using Xunit;
 

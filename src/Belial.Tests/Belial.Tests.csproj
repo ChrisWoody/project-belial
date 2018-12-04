@@ -17,6 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Belial.Common\Belial.Common.csproj" />
     <ProjectReference Include="..\Belial\Belial.csproj" />
   </ItemGroup>
 
