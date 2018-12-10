@@ -32,4 +32,8 @@ steps:
 
 - script: powershell .\scripts\deploy.ps1 -appServiceName "$(appservicename)" -Username "$(appserviceusername)" -Password "$(appservicepassword)
   condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
-  displayName: 'Deploy'
+  displayName: 'Deploy Backend'
+
+- script: powershell .\scripts\deploy-website.ps1 -storageUrl "$(websitestorageurl)" -sasToken "$(websitesastoken)"
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+  displayName: 'Deploy Website'
