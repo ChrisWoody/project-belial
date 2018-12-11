@@ -18,7 +18,7 @@ Param
     [string] $sasToken,
 
     [ValidateNotNullOrEmpty()]
-    [string] $pathToWebsite = ".\src\Belial.Blazor\bin\Release\netstandard2.0\publish\Belial.Blazor\dist\"
+    [string] $pathToWebsite = "..\src\Belial.Blazor\bin\Release\netstandard2.0\publish\Belial.Blazor\dist\"
 )
 
 $ErrorActionPreference = "Stop"
@@ -27,6 +27,7 @@ Add-Type -AssemblyName "System.Web"
 
 try
 {
+    $pathToWebsite = Join-Path -Path $PSScriptRoot -ChildPath $pathToWebsite
     $filesToUpload = Get-ChildItem -Path $pathToWebsite -Recurse -File -Name
 
     ForEach ($filename in $filesToUpload)

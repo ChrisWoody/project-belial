@@ -2,6 +2,9 @@ pool:
   vmImage: 'VS2017-Win2016'
 
 steps:
+- script: powershell Write-Host $PSVersionTable.PSVersion
+  displayName: 'PS Version check'
+
 - script: powershell .\scripts\build.ps1
   displayName: 'Build'
 
@@ -30,10 +33,10 @@ steps:
 - script: powershell .\scripts\package.ps1
   displayName: 'Package'
 
-- script: powershell .\scripts\deploy.ps1 -appServiceName "$(appservicename)" -Username "$(appserviceusername)" -Password "$(appservicepassword)
+- script: powershell .\scripts\deploy.ps1 -appServiceName "$(appservicename)" -Username "$(appserviceusername)" -Password "$(appservicepassword)"
   condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
   displayName: 'Deploy Backend'
 
-- script: powershell .\scripts\deploy-website.ps1 -storageUrl "$(websitestorageurl)" -sasToken "$(websitesastoken)"
-  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
-  displayName: 'Deploy Website'
+# - script: powershell .\scripts\deploy-website.ps1 -storageUrl ""$(websitestorageurl)"" -sasToken ""$(websitesastoken)""
+#   condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+#   displayName: 'Deploy Website'
