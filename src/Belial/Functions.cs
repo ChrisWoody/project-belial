@@ -85,7 +85,7 @@ namespace Belial
                 {
                     Isbn = b.Isbn,
                     Title = b.Title,
-                    FullImageUrl = $"{blobEndpoint}/image-original/{b.ImageFilename}"
+                    FullImageUrl = $"{blobEndpoint}/image-original/{b.ImageFilename}", // note container might default to no public access
                 });
 
                 var response = new BooksForUser
@@ -126,15 +126,27 @@ namespace Belial
         public static async Task ProcessBookEntryQueueFunction(
             [QueueTrigger(BookEntryQueueName)] BookEntryQueueMessage bookEntryQueueMessage,
             ILogger log,
-            [Queue(AddBookQueueName)] IAsyncCollector<AddBookQueueMessage> addBookQueue)
+            [Queue(AddBookQueueName)] IAsyncCollector<AddBookQueueMessage> addBookQueue,
+            [Queue(DownloadBookImageQueueName)] IAsyncCollector<DownloadBookImageQueueMessage> downloadBookImageQueue)
         {
             log.LogInformation("Process Book Entry Queue function called");
+
+            var imageExt = Path.GetExtension(bookEntryQueueMessage.ImageUrl);
+            var imageFilename = $"{Guid.NewGuid()}{imageExt}";
+
+            bookEntryQueueMessage.Book.ImageFilename = imageFilename;
 
             await addBookQueue.AddAsync(new AddBookQueueMessage
             {
                 Book = bookEntryQueueMessage.Book,
-                ImageUrl = bookEntryQueueMessage.ImageUrl,
                 UserId = bookEntryQueueMessage.UserId
+            });
+
+            // if ImageUrl is null/missing, can assume image is downloaded? I.e. don't compute a new imageFilename
+            await downloadBookImageQueue.AddAsync(new DownloadBookImageQueueMessage
+            {
+                ImageUrl = bookEntryQueueMessage.ImageUrl,
+                Filename = imageFilename
             });
         }
 
@@ -142,13 +154,9 @@ namespace Belial
         public static async Task ProcessAddBookQueueFunction(
             [QueueTrigger(AddBookQueueName)] AddBookQueueMessage addBookQueueMessage,
             ILogger log,
-            [Table("book")] CloudTable bookTable,
-            [Queue(DownloadBookImageQueueName)] IAsyncCollector<DownloadBookImageQueueMessage> downloadBookImageQueue)
+            [Table("book")] CloudTable bookTable)
         {
             log.LogInformation("Process Add Book Queue function called");
-
-            var imageExt = Path.GetExtension(addBookQueueMessage.ImageUrl);
-            var imageFilename = $"{Guid.NewGuid()}{imageExt}";
 
             var upsertBookOp = TableOperation.InsertOrReplace(new BookTableEntity
             {
@@ -156,15 +164,9 @@ namespace Belial
                 RowKey = addBookQueueMessage.Book.Isbn,
                 Isbn = addBookQueueMessage.Book.Isbn,
                 Title = addBookQueueMessage.Book.Title,
-                ImageFilename = imageFilename
+                ImageFilename = addBookQueueMessage.Book.ImageFilename,
             });
             await bookTable.ExecuteAsync(upsertBookOp);
-
-            await downloadBookImageQueue.AddAsync(new DownloadBookImageQueueMessage
-            {
-                ImageUrl = addBookQueueMessage.ImageUrl,
-                Filename = imageFilename
-            });
         }
 
         internal static IStreamProvider StreamProvider = new StreamProvider();

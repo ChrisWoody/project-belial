@@ -7,6 +7,7 @@ namespace Belial.Common
     {
         public string Isbn { get; set; }
         public string Title { get; set; }
+        public string ImageFilename { get; set; }
     }
 
     public class BookEntryHttpMessage
@@ -37,7 +38,6 @@ namespace Belial.Common
     {
         public Book Book { get; set; }
         public Guid UserId { get; set; }
-        public string ImageUrl { get; set; }
     }
 
     public class BookTableEntity : TableEntity
