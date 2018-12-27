@@ -17,6 +17,7 @@ async Task Main()
 {
     await HitBookEntryEndpoint();
     //await HitGetBooksForUserEndpoint();
+	//await HitUpdateBookForUserEndpoint();
 }
 
 private async Task HitBookEntryEndpoint()
@@ -43,6 +44,30 @@ private async Task HitGetBooksForUserEndpoint()
     JsonConvert.DeserializeObject<BooksForUser>(responseContent).Dump();
     response.Dump("Full Response");
     response.EnsureSuccessStatusCode();
+}
+
+private async Task HitUpdateBookForUserEndpoint()
+{
+	var message = new UpdateBookHttpMessage
+	{
+		UserId = UserId,
+		Book = new Book
+		{
+			Isbn = "9781844168965",
+			Title = "The Purging of Kadillus",
+			ImageFilename = $"{Guid.NewGuid()}.jpg",
+			HasRead = true
+		}
+	}.Dump();
+	
+	var requestContent = new StringContent(JsonConvert.SerializeObject(message).Dump(), Encoding.UTF8, "application/json");
+
+	var response = await HttpClient.PostAsync("http://127.0.0.1:7071/api/UpdateBookForUser", requestContent);
+	//var response = await httpClient.PostAsync("http://127.0.0.1:7071/api/UpdateBookForUser?code=<functionkey>", responseContent);
+
+	(await response.Content.ReadAsStringAsync()).Dump("Response Content");
+	response.Dump("Full Response");
+	response.EnsureSuccessStatusCode();
 }
 
 private BookEntryHttpMessage[] BookEntryMessages = new[]

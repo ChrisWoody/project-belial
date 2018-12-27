@@ -15,6 +15,7 @@ namespace Belial.Tests
                 Isbn = "9781844168965",
                 Title = "The Purging of Kadillus",
                 ImageFilename = null,
+                HasRead = true,
             },
             UserId = Guid.Parse("63CDBDDD-CE8C-411D-BA1E-0174FA19C05C"),
             ImageUrl = "https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg"
@@ -32,6 +33,7 @@ namespace Belial.Tests
             Assert.Equal(_bookEntryQueueMessage.Book.Title, addBookQueue.QueuedItems[0].Book.Title);
             Assert.True(Guid.TryParse(addBookQueue.QueuedItems[0].Book.ImageFilename.Split('.')[0], out _));
             Assert.Equal("jpg", addBookQueue.QueuedItems[0].Book.ImageFilename.Split('.')[1]);
+            Assert.Equal(_bookEntryQueueMessage.Book.HasRead, addBookQueue.QueuedItems[0].Book.HasRead);
             Assert.Equal(_bookEntryQueueMessage.UserId, addBookQueue.QueuedItems[0].UserId);
         }
 

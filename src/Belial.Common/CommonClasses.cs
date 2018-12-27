@@ -8,6 +8,7 @@ namespace Belial.Common
         public string Isbn { get; set; }
         public string Title { get; set; }
         public string ImageFilename { get; set; }
+        public bool HasRead { get; set; }
     }
 
     public class BookEntryHttpMessage
@@ -45,11 +46,18 @@ namespace Belial.Common
         public string Isbn { get; set; }
         public string Title { get; set; }
         public string ImageFilename { get; set; }
+        public bool HasRead { get; set; }
     }
 
     public class DownloadBookImageQueueMessage
     {
         public string ImageUrl { get; set; }
         public string Filename { get; set; }
+    }
+
+    public class UpdateBookHttpMessage
+    {
+        public Book Book { get; set; }
+        public Guid UserId { get; set; }
     }
 }

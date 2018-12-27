@@ -19,7 +19,8 @@ namespace Belial.Tests
         {
             Isbn = "9781844168965",
             Title = "The Purging of Kadillus",
-            ImageFilename = "6C9F8062-7E28-4FB6-A7A5-31D46BCA864C.jpg"
+            ImageFilename = "6C9F8062-7E28-4FB6-A7A5-31D46BCA864C.jpg",
+            HasRead = true
         };
 
         [Fact]
@@ -54,6 +55,8 @@ namespace Belial.Tests
             Assert.Equal(_bookTableEntity.Isbn, booksForUser.Books[0].Isbn);
             Assert.Equal(_bookTableEntity.Title, booksForUser.Books[0].Title);
             Assert.Equal($"http://127.0.0.1:10000/devstoreaccount1/image-original/{_bookTableEntity.ImageFilename}", booksForUser.Books[0].FullImageUrl);
+            Assert.Equal(_bookTableEntity.ImageFilename, booksForUser.Books[0].ImageFilename);
+            Assert.Equal(_bookTableEntity.HasRead, booksForUser.Books[0].HasRead);
         }
 
         // As magic as Moq is, it can't mock something with an internal constructor, so we use reflection instead!

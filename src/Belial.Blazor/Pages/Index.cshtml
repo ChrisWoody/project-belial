@@ -1,5 +1,7 @@
 ﻿@page "/"
+@using System.Text
 @using Belial.Common
+@using Newtonsoft.Json
 @inject HttpClient httpClient
 
 <h1>Project Belial</h1>
@@ -8,12 +10,15 @@
 {
     <p>Specify the full function url to query for the user's books</p>
 
-    <input type="text" bind="@GetBooksUrlWithQuery" />
+    <label>Website Url: </label><input type="text" bind="@WebsiteUrl" />
+    <p/>
+    <label>User Id: </label><input type="text" bind="@UserId" />
+    <p/>
     <button onclick="@Setup">Submit</button>
 }
 else
 {
-    <p>You've specified the url: <a href="@GetBooksUrlWithQuery">@GetBooksUrlWithQuery</a></p>
+    <p>You've specified the url: <a href="@WebsiteUrl">@WebsiteUrl</a></p>
 
     if (BooksForUser?.Books == null)
     {
@@ -39,7 +44,14 @@ else
                                     <p class="card-text">@book.Title<br/>@book.Isbn</p>
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div class="btn-group">
-                                            <button type="button" class="btn btn-sm btn-outline-secondary">Read</button>
+                                            @if (book.HasRead)
+                                            {
+                                                <button onclick=@(() => SetBookHasRead(book, false)) class="btn btn-sm btn-outline-success">Have Read</button>
+                                            }
+                                            else
+                                            {
+                                                <button onclick=@(() => SetBookHasRead(book, true)) class="btn btn-sm btn-outline-secondary">Have Not Read</button>
+                                            }
                                         </div>
                                     </div>
                                 </div>
@@ -54,11 +66,10 @@ else
     }
 }
 
-<p>@something</p>
-
 @functions
 {
-    private string GetBooksUrlWithQuery = "http://127.0.0.1:7071/api/GetBooksForUser/63cdbddd-ce8c-411d-ba1e-0174fa19c05c";
+    private string WebsiteUrl = "http://127.0.0.1:7071";
+    private string UserId = "63cdbddd-ce8c-411d-ba1e-0174fa19c05c";
     private bool IsSetup;
     private BooksForUser BooksForUser;
     private string something;
@@ -72,6 +83,23 @@ else
 
     private async Task GetBooksForUser()
     {
-        BooksForUser = await httpClient.GetJsonAsync<BooksForUser>(GetBooksUrlWithQuery);
+        BooksForUser = await httpClient.GetJsonAsync<BooksForUser>($"{WebsiteUrl}/api/GetBooksForUser/{UserId}");
     }
+
+    private async Task SetBookHasRead(BookWithImage book, bool hasRead)
+    {
+        book.HasRead = hasRead;
+
+        var message = new UpdateBookHttpMessage
+        {
+            UserId = GetUserId(),
+            Book = book
+        };
+
+        var requestContent = new StringContent(JsonConvert.SerializeObject(message), Encoding.UTF8, "application/json");
+        var response = await httpClient.PostAsync($"{WebsiteUrl}/api/UpdateBookForUser/", requestContent);
+        response.EnsureSuccessStatusCode();
+    }
+
+    private Guid GetUserId() => Guid.Parse(UserId);
 }

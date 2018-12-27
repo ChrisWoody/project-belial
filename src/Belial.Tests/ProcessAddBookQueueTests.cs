@@ -18,6 +18,7 @@ namespace Belial.Tests
                 Isbn = "9781844168965",
                 Title = "The Purging of Kadillus",
                 ImageFilename = "21e237d2-a901-4e7e-b58f-19602bc99313.jpg",
+                HasRead = true,
             },
             UserId = Guid.Parse("63CDBDDD-CE8C-411D-BA1E-0174FA19C05C"),
         };
@@ -36,6 +37,7 @@ namespace Belial.Tests
             bookTable.VerifyExecuteAsync(e => ((BookTableEntity) e.Entity).Isbn == _addBookQueueMessage.Book.Isbn);
             bookTable.VerifyExecuteAsync(e => ((BookTableEntity) e.Entity).Title == _addBookQueueMessage.Book.Title);
             bookTable.VerifyExecuteAsync(e => ((BookTableEntity) e.Entity).ImageFilename == _addBookQueueMessage.Book.ImageFilename);
+            bookTable.VerifyExecuteAsync(e => ((BookTableEntity) e.Entity).HasRead == _addBookQueueMessage.Book.HasRead);
         }
     }
 

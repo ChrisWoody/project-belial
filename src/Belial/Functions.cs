@@ -86,6 +86,8 @@ namespace Belial
                     Isbn = b.Isbn,
                     Title = b.Title,
                     FullImageUrl = $"{blobEndpoint}/image-original/{b.ImageFilename}", // note container might default to no public access
+                    ImageFilename = b.ImageFilename,
+                    HasRead = b.HasRead
                 });
 
                 var response = new BooksForUser
@@ -120,6 +122,37 @@ namespace Belial
             } while (token != null);
 
             return books;
+        }
+
+        [FunctionName("UpdateBookForUser")]
+        public static async Task<IActionResult> UpdateBookForUserFunction(
+            [HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequest req,
+            ILogger log,
+            [Queue(AddBookQueueName)] IAsyncCollector<AddBookQueueMessage> addBookQueue)
+        {
+            log.LogInformation("Update Book function called");
+
+            try
+            {
+                var updateBookRequestBody = await new StreamReader(req.Body).ReadToEndAsync();
+                var updateBookMessage = JsonConvert.DeserializeObject<UpdateBookHttpMessage>(updateBookRequestBody);
+
+                if (updateBookMessage.UserId == Guid.Empty)
+                    return new BadRequestObjectResult("Invalid request to update book. 'UserId' is empty.");
+
+                await addBookQueue.AddAsync(new AddBookQueueMessage
+                {
+                    Book = updateBookMessage.Book,
+                    UserId = updateBookMessage.UserId,
+                });
+
+                return new OkObjectResult($"Valid request to update book for {updateBookMessage.Book.Isbn}");
+            }
+            catch (Exception e)
+            {
+                log.LogError(e, "An error occured");
+                return new BadRequestObjectResult("An unknown error occurred processing request");
+            }
         }
 
         [FunctionName("ProcessBookEntryQueue")]
@@ -165,6 +198,7 @@ namespace Belial
                 Isbn = addBookQueueMessage.Book.Isbn,
                 Title = addBookQueueMessage.Book.Title,
                 ImageFilename = addBookQueueMessage.Book.ImageFilename,
+                HasRead = addBookQueueMessage.Book.HasRead
             });
             await bookTable.ExecuteAsync(upsertBookOp);
         }
