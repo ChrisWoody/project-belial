@@ -45,27 +45,5 @@ namespace Belial.Tests
 
             Assert.Empty(resultsExpectToBeEmpty);
         }
-
-        [Fact]
-        public void AllFunctionsHaveAnOutputType()
-        {
-            var functions = typeof(Functions).GetMethods(BindingFlags.Public | BindingFlags.Static);
-
-            var resultsExpectToBeEmpty = functions.Select(x =>
-                {
-                    var parameters = x.GetParameters();
-
-                    if (parameters.Any(p =>
-                        p.GetCustomAttribute<QueueAttribute>() != null ||
-                        p.GetCustomAttribute<TableAttribute>() != null ||
-                        p.GetCustomAttribute<BlobAttribute>() != null))
-                        return null;
-
-                    return x.Name;
-                })
-                .Where(x => x != null);
-
-            Assert.Empty(resultsExpectToBeEmpty);
-        }
     }
 }

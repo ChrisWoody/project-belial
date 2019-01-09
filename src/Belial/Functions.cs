@@ -3,14 +3,20 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Belial.Common;
+using Google.Apis.Auth.OAuth2;
+using Google.Apis.Services;
+using Google.Apis.Sheets.v4;
+using Google.Apis.Util.Store;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Blob;
 using Microsoft.WindowsAzure.Storage.Table;
 using Newtonsoft.Json;
 
@@ -18,84 +24,24 @@ namespace Belial
 {
     public static class Functions
     {
-        private const string BookEntryQueueName = "book-entry-queue";
-        private const string AddBookQueueName = "add-book-queue";
-        private const string DownloadBookImageQueueName = "download-book-image-queue";
+        private const string DownloadImageQueueName = "download-image-queue";
 
-        [FunctionName("ManualBookEntry")]
-        public static async Task<IActionResult> ManualBookEntryFunction(
-            [HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequest req,
+        [FunctionName("GetBooks")]
+        public static async Task<IActionResult> GetBooksFunction(
+            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "GetBooks/{spreadsheetId}")] HttpRequest req,
             ILogger log,
-            [Queue(BookEntryQueueName)] IAsyncCollector<BookEntryQueueMessage> bookEntryQueue)
+            string spreadsheetId)
         {
-            log.LogInformation("Manual Book Entry function called");
-
-            try
-            {
-                var bookEntryRequest = await new StreamReader(req.Body).ReadToEndAsync();
-                var bookEntry = JsonConvert.DeserializeObject<BookEntryHttpMessage>(bookEntryRequest);
-
-                if (string.IsNullOrWhiteSpace(bookEntry?.Book?.Isbn))
-                    return new BadRequestObjectResult("Invalid request to add book. 'Isbn' missing.");
-
-                if (string.IsNullOrWhiteSpace(bookEntry?.Book?.Title))
-                    return new BadRequestObjectResult("Invalid request to add book. 'Title' missing.");
-
-                if (bookEntry.UserId == Guid.Empty)
-                    return new BadRequestObjectResult("Invalid request to add book. 'UserId' is empty.");
-
-                if (string.IsNullOrWhiteSpace(bookEntry.ImageUrl))
-                    return new BadRequestObjectResult("Invalid request to add book. 'ImageUrl' missing.");
-
-                await bookEntryQueue.AddAsync(new BookEntryQueueMessage
-                {
-                    Book = bookEntry.Book,
-                    UserId = bookEntry.UserId,
-                    ImageUrl = bookEntry.ImageUrl
-                });
-
-                return new OkObjectResult($"Valid request to add '{bookEntry.Book.Title}'.");
-            }
-            catch (Exception e)
-            {
-                log.LogError(e, "An error occured");
-                return new BadRequestObjectResult("An unknown error occured processing request");
-            }
-        }
-
-        [FunctionName("GetBooksForUser")]
-        public static async Task<IActionResult> GetBooksForUserFunction(
-            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "GetBooksForUser/{userId}")] HttpRequest req,
-            string userId,
-            ILogger log,
-            [Table("book")] CloudTable bookTable)
-        {
-            log.LogInformation("Get Books For User function called");
+            log.LogInformation("Get Books function called");
             
             try
             {
-                if (!Guid.TryParse(userId, out _))
-                    return new BadRequestObjectResult("Invalid request get user books. 'userId' is empty.");
-
                 var connection = Environment.GetEnvironmentVariable("AzureWebJobsStorage");
                 var blobEndpoint = CloudStorageAccount.Parse(connection).BlobEndpoint.ToString();
 
-                var books = await GetBookTableEntitiesForUser(bookTable, userId);
-                var booksWithImage = books.Select(b => new BookWithImage
-                {
-                    Isbn = b.Isbn,
-                    Title = b.Title,
-                    FullImageUrl = $"{blobEndpoint}/image-original/{b.ImageFilename}", // note container might default to no public access
-                    ImageFilename = b.ImageFilename,
-                    HasRead = b.HasRead
-                });
+                var books = await GetBooks(spreadsheetId);
 
-                var response = new BooksForUser
-                {
-                    Books = booksWithImage.ToArray()
-                };
-
-                return new OkObjectResult(JsonConvert.SerializeObject(response));
+                return new OkObjectResult(JsonConvert.SerializeObject(books));
             }
             catch (Exception e)
             {
@@ -104,118 +50,83 @@ namespace Belial
             }
         }
 
-        private static async Task<List<BookTableEntity>> GetBookTableEntitiesForUser(CloudTable bookTable,
-            string userId)
+        private static async Task<List<Book>> GetBooks(string spreadsheetId)
         {
-            var query = new TableQuery<BookTableEntity>().Where(
-                TableQuery.GenerateFilterCondition("PartitionKey", QueryComparisons.Equal, userId));
+            UserCredential credential;
 
-            var books = new List<BookTableEntity>();
-            TableContinuationToken token = null;
-
-            do
+            using (var stream = new FileStream("credentials.json", FileMode.Open, FileAccess.Read))
             {
-                var queryResult = await bookTable.ExecuteQuerySegmentedAsync(query, token);
-                token = queryResult.ContinuationToken;
+                credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
+                    GoogleClientSecrets.Load(stream).Secrets,
+                    new[] { SheetsService.Scope.SpreadsheetsReadonly },
+                    "user",
+                    CancellationToken.None,
+                    new FileDataStore("token.json", true));
+            }
 
-                books.AddRange(queryResult.Results);
-            } while (token != null);
+            var service = new SheetsService(new BaseClientService.Initializer()
+            {
+                HttpClientInitializer = credential,
+                ApplicationName = "project-belial"
+            });
+
+            var books = new List<Book>();
+            var worksheets = service.Spreadsheets.Get(spreadsheetId).Execute().Sheets.Select(x => x.Properties.Title);
+            foreach (var worksheet in worksheets.Where(x => x != "Read Me"))
+            {
+                var range = $"{worksheet}!A2:G1000";
+                var request = service.Spreadsheets.Values.Get(spreadsheetId, range);
+
+                var response = await request.ExecuteAsync();
+
+                foreach (var book in response.Values)
+                {
+                    int? seriesNumber = null;
+                    if (int.TryParse((string)book[1], out var validSeriesNumber))
+                        seriesNumber = validSeriesNumber;
+
+                    books.Add(new Book
+                    {
+                        Title = (string)book[0],
+                        Series = worksheet,
+                        SeriesNumber = seriesNumber,
+                        Type = (string)book[2],
+                        Isbn = (string)book[3],
+                        HasRead = ((string)book[4]) == "Yes",
+                        AnthologyStories = book.Count > 5 && !string.IsNullOrWhiteSpace((string)book[5]) ? ((string)book[5]).Split('|') : null,
+                        FullImageUrl = "" //OriginalImageUrl = book.Count > 6 ? ((string)book[6]) : null
+                    });
+                }
+            }
 
             return books;
         }
 
-        [FunctionName("UpdateBookForUser")]
-        public static async Task<IActionResult> UpdateBookForUserFunction(
-            [HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequest req,
-            ILogger log,
-            [Queue(AddBookQueueName)] IAsyncCollector<AddBookQueueMessage> addBookQueue)
-        {
-            log.LogInformation("Update Book function called");
-
-            try
-            {
-                var updateBookRequestBody = await new StreamReader(req.Body).ReadToEndAsync();
-                var updateBookMessage = JsonConvert.DeserializeObject<UpdateBookHttpMessage>(updateBookRequestBody);
-
-                if (updateBookMessage.UserId == Guid.Empty)
-                    return new BadRequestObjectResult("Invalid request to update book. 'UserId' is empty.");
-
-                await addBookQueue.AddAsync(new AddBookQueueMessage
-                {
-                    Book = updateBookMessage.Book,
-                    UserId = updateBookMessage.UserId,
-                });
-
-                return new OkObjectResult($"Valid request to update book for {updateBookMessage.Book.Isbn}");
-            }
-            catch (Exception e)
-            {
-                log.LogError(e, "An error occured");
-                return new BadRequestObjectResult("An unknown error occurred processing request");
-            }
-        }
-
-        [FunctionName("ProcessBookEntryQueue")]
-        public static async Task ProcessBookEntryQueueFunction(
-            [QueueTrigger(BookEntryQueueName)] BookEntryQueueMessage bookEntryQueueMessage,
-            ILogger log,
-            [Queue(AddBookQueueName)] IAsyncCollector<AddBookQueueMessage> addBookQueue,
-            [Queue(DownloadBookImageQueueName)] IAsyncCollector<DownloadBookImageQueueMessage> downloadBookImageQueue)
-        {
-            log.LogInformation("Process Book Entry Queue function called");
-
-            var imageExt = Path.GetExtension(bookEntryQueueMessage.ImageUrl);
-            var imageFilename = $"{Guid.NewGuid()}{imageExt}";
-
-            bookEntryQueueMessage.Book.ImageFilename = imageFilename;
-
-            await addBookQueue.AddAsync(new AddBookQueueMessage
-            {
-                Book = bookEntryQueueMessage.Book,
-                UserId = bookEntryQueueMessage.UserId
-            });
-
-            // if ImageUrl is null/missing, can assume image is downloaded? I.e. don't compute a new imageFilename
-            await downloadBookImageQueue.AddAsync(new DownloadBookImageQueueMessage
-            {
-                ImageUrl = bookEntryQueueMessage.ImageUrl,
-                Filename = imageFilename
-            });
-        }
-
-        [FunctionName("ProcessAddBookQueue")]
-        public static async Task ProcessAddBookQueueFunction(
-            [QueueTrigger(AddBookQueueName)] AddBookQueueMessage addBookQueueMessage,
-            ILogger log,
-            [Table("book")] CloudTable bookTable)
-        {
-            log.LogInformation("Process Add Book Queue function called");
-
-            var upsertBookOp = TableOperation.InsertOrReplace(new BookTableEntity
-            {
-                PartitionKey = addBookQueueMessage.UserId.ToString(),
-                RowKey = addBookQueueMessage.Book.Isbn,
-                Isbn = addBookQueueMessage.Book.Isbn,
-                Title = addBookQueueMessage.Book.Title,
-                ImageFilename = addBookQueueMessage.Book.ImageFilename,
-                HasRead = addBookQueueMessage.Book.HasRead
-            });
-            await bookTable.ExecuteAsync(upsertBookOp);
-        }
+        // refresh images function
+        // could have options, ie. hard refresh everything (download everything again), soft refresh (download everything that doesn't exist, so function will need to check)
 
         internal static IStreamProvider StreamProvider = new StreamProvider();
 
-        [FunctionName("ProcessDownloadBookImageQueue")]
-        public static async Task ProcessDownloadBookImageQueueFunction(
-            [QueueTrigger(DownloadBookImageQueueName)] DownloadBookImageQueueMessage downloadBookImageQueueMessage,
-            ILogger log,
-            [Blob("image-original/{Filename}", FileAccess.Write)] Stream imageBlobStream)
-        {
-            log.LogInformation("Process Download Book Image Queue function called");
-            var imageStream = await StreamProvider.GetStreamAsync(downloadBookImageQueueMessage.ImageUrl);
+        //[FunctionName("ProcessDownloadImageQueue")]
+        //public static async Task ProcessDownloadImageQueueFunction(
+        //    [QueueTrigger(DownloadImageQueueName)] DownloadImageQueueMessage downloadImageQueueMessage,
+        //    ILogger log,
+        //    [Blob("image-original/{Filename}", FileAccess.ReadWrite)] CloudBlockBlob blob) // need Read for Exists?
+        //{
+        //    log.LogInformation("Process Download Image Queue function called");
+        //    var imageStream = await StreamProvider.GetStreamAsync(downloadImageQueueMessage.ImageUrl);
 
-            await imageStream.CopyToAsync(imageBlobStream);
-        }
+        //    // check message first, might want to force update regardless if it exists
+        //    if (await blob.ExistsAsync())
+        //    {
+        //        return;
+        //    }
+
+        //    await blob.UploadFromStreamAsync(imageStream);
+        //    //await imageStream.CopyToAsync(imageBlobStream);
+        //}
+
+        // blob trigger to a smaller image, likely different container
     }
 
     public class StreamProvider : IStreamProvider

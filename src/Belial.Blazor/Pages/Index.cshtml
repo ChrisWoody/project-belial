@@ -12,7 +12,7 @@
 
     <label>Website Url: </label><input type="text" bind="@WebsiteUrl" />
     <p/>
-    <label>User Id: </label><input type="text" bind="@UserId" />
+    <label>Spreadsheet Id: </label><input type="text" bind="@SpreadsheetId" />
     <p/>
     <button onclick="@Setup">Submit</button>
 }
@@ -20,21 +20,21 @@ else
 {
     <p>You've specified the url: <a href="@WebsiteUrl">@WebsiteUrl</a></p>
 
-    if (BooksForUser?.Books == null)
+    if (Books == null)
     {
         <p>Getting books...</p>
     }
     else
     {
         <button onclick="@GetBooksForUser">Refresh</button>
-        <p>@BooksForUser.Books.Length books found!</p>
+        <p>@Books.Length books found!</p>
 
         <div class="album py-5 bg-light">
             <div class="container-fluid">
 
                 <div class="row">
 
-                    @foreach (var book in BooksForUser.Books)
+                    @foreach (var book in Books)
                     {
 
                         <div class="col-auto">
@@ -46,11 +46,11 @@ else
                                         <div class="btn-group">
                                             @if (book.HasRead)
                                             {
-                                                <button onclick=@(() => SetBookHasRead(book, false)) class="btn btn-sm btn-outline-success">Have Read</button>
+                                                <button onclick=@(() => SetBookHasRead(book, false)) class="btn btn-sm btn-success">Have Read</button>
                                             }
                                             else
                                             {
-                                                <button onclick=@(() => SetBookHasRead(book, true)) class="btn btn-sm btn-outline-secondary">Have Not Read</button>
+                                                <button onclick=@(() => SetBookHasRead(book, true)) class="btn btn-sm btn-warning">Have Not Read</button>
                                             }
                                         </div>
                                     </div>
@@ -69,10 +69,9 @@ else
 @functions
 {
     private string WebsiteUrl = "http://127.0.0.1:7071";
-    private string UserId = "63cdbddd-ce8c-411d-ba1e-0174fa19c05c";
+    private string SpreadsheetId;
     private bool IsSetup;
-    private BooksForUser BooksForUser;
-    private string something;
+    private Book[] Books;
 
     private async Task Setup()
     {
@@ -83,23 +82,11 @@ else
 
     private async Task GetBooksForUser()
     {
-        BooksForUser = await httpClient.GetJsonAsync<BooksForUser>($"{WebsiteUrl}/api/GetBooksForUser/{UserId}");
+        Books = await httpClient.GetJsonAsync<Book[]>($"{WebsiteUrl}/api/GetBooks/{SpreadsheetId}");
     }
 
-    private async Task SetBookHasRead(BookWithImage book, bool hasRead)
+    private async Task SetBookHasRead(Book book, bool hasRead)
     {
-        book.HasRead = hasRead;
 
-        var message = new UpdateBookHttpMessage
-        {
-            UserId = GetUserId(),
-            Book = book
-        };
-
-        var requestContent = new StringContent(JsonConvert.SerializeObject(message), Encoding.UTF8, "application/json");
-        var response = await httpClient.PostAsync($"{WebsiteUrl}/api/UpdateBookForUser/", requestContent);
-        response.EnsureSuccessStatusCode();
     }
-
-    private Guid GetUserId() => Guid.Parse(UserId);
 }
