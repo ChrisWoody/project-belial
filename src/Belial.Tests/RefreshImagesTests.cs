@@ -27,7 +27,7 @@ namespace Belial.Tests
             var response = await Functions.RefreshImagesFunction(request, new TestLogger(), queue);
 
             Assert.Equal("https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg", queue.QueuedItems[0].ImageUrl);
-            Assert.Equal("srxdscrqY/AfJcMXFV44tw==.jpg", queue.QueuedItems[0].Filename);
+            Assert.Equal("srxdscrqY0AfJcMXFV44tw==.jpg", queue.QueuedItems[0].Filename);
             Assert.Equal("https://images-na.ssl-images-amazon.com/images/I/8147jfELDHL.jpg", queue.QueuedItems[1].ImageUrl);
             Assert.Equal("z8o4LOo1ux8nHFDBXTagoA==.jpg", queue.QueuedItems[1].Filename);
         }

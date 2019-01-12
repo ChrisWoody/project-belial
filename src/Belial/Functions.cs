@@ -142,7 +142,7 @@ namespace Belial
         private static string GetImageHashName(string imageUrl)
         {
             var hashBytes = Md5.ComputeHash(Encoding.UTF8.GetBytes(imageUrl));
-            var hash = Convert.ToBase64String(hashBytes);
+            var hash = Convert.ToBase64String(hashBytes).Replace("/", "0");
             var fileExtension = Path.GetExtension(imageUrl);
             return hash + fileExtension;
         }
@@ -152,24 +152,18 @@ namespace Belial
 
         internal static IStreamProvider StreamProvider = new StreamProvider();
 
-        //[FunctionName("ProcessDownloadImageQueue")]
-        //public static async Task ProcessDownloadImageQueueFunction(
-        //    [QueueTrigger(DownloadImageQueueName)] DownloadImageQueueMessage downloadImageQueueMessage,
-        //    ILogger log,
-        //    [Blob("image-original/{Filename}", FileAccess.ReadWrite)] CloudBlockBlob blob) // need Read for Exists?
-        //{
-        //    log.LogInformation("Process Download Image Queue function called");
-        //    var imageStream = await StreamProvider.GetStreamAsync(downloadImageQueueMessage.ImageUrl);
+        // This will just overwrite an image even if it exists for now
+        [FunctionName("ProcessDownloadImageQueue")]
+        public static async Task ProcessDownloadImageQueueFunction(
+            [QueueTrigger(DownloadImageQueueName)] DownloadImageQueueMessage downloadImageQueueMessage,
+            ILogger log,
+            [Blob("image-original/{Filename}", FileAccess.Write)] Stream imageBlobStream)
+        {
+            log.LogInformation("Process Download Image Queue function called");
+            var imageStream = await StreamProvider.GetStreamAsync(downloadImageQueueMessage.ImageUrl);
 
-        //    // check message first, might want to force update regardless if it exists
-        //    if (await blob.ExistsAsync())
-        //    {
-        //        return;
-        //    }
-
-        //    await blob.UploadFromStreamAsync(imageStream);
-        //    //await imageStream.CopyToAsync(imageBlobStream);
-        //}
+            await imageStream.CopyToAsync(imageBlobStream);
+        }
 
         // blob trigger to a smaller image, likely different container
     }
