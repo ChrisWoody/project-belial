@@ -27,6 +27,8 @@ else
     else
     {
         <button onclick="@GetBooksForUser">Refresh</button>
+        <button onclick="@RefreshAllImages">Refresh all images</button>
+        <button onclick="@RefreshUi">Refresh UI</button>
         <p>@Books.Length books found!</p>
 
         <div class="album py-5 bg-light">
@@ -39,7 +41,7 @@ else
 
                         <div class="col-auto">
                             <div class="card mb-4">
-                                <img src="@book.FullImageUrl" alt="Book image" width="200" height="300">
+                                <img src="@book.FullImageUrl" alt="Book image" width="200">
                                 <div class="card-body">
                                     <p class="card-text">@book.Title<br/>@book.Isbn</p>
                                     <div class="d-flex justify-content-between align-items-center">
@@ -88,5 +90,17 @@ else
     private async Task SetBookHasRead(Book book, bool hasRead)
     {
 
+    }
+
+    private async Task RefreshAllImages()
+    {
+        var content = new StringContent(JsonConvert.SerializeObject(Books.Where(c => !string.IsNullOrWhiteSpace(c.OriginalImageUrl)).Select(c => c.OriginalImageUrl)), Encoding.UTF8, "application/json");
+        var response = await httpClient.PostAsync($"{WebsiteUrl}/api/RefreshImages", content);
+        response.EnsureSuccessStatusCode();
+    }
+
+    private async Task RefreshUi()
+    {
+        base.StateHasChanged();
     }
 }
