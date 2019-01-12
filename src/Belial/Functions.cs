@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Belial.Common;
@@ -94,12 +96,55 @@ namespace Belial
                         Isbn = (string)book[3],
                         HasRead = ((string)book[4]) == "Yes",
                         AnthologyStories = book.Count > 5 && !string.IsNullOrWhiteSpace((string)book[5]) ? ((string)book[5]).Split('|') : null,
-                        FullImageUrl = "" //OriginalImageUrl = book.Count > 6 ? ((string)book[6]) : null
+                        OriginalImageUrl = book.Count > 6 ? ((string)book[6]) : null,
+                        FullImageUrl = ""
                     });
                 }
             }
 
             return books;
+        }
+
+        [FunctionName("RefreshImages")]
+        public static async Task<IActionResult> RefreshImagesFunction(
+            [HttpTrigger(AuthorizationLevel.Function, "post", Route = "RefreshImages")]
+            HttpRequest req,
+            ILogger log,
+            [Queue(DownloadImageQueueName)] IAsyncCollector<DownloadImageQueueMessage> downloadImageQueue)
+        {
+            log.LogInformation("Refresh Images function called");
+
+            try
+            {
+                var refreshImagesRequest = await new StreamReader(req.Body).ReadToEndAsync();
+                var imagesToDownload = JsonConvert.DeserializeObject<string[]>(refreshImagesRequest);
+
+                foreach (var imageToDownload in imagesToDownload)
+                {
+                    await downloadImageQueue.AddAsync(new DownloadImageQueueMessage
+                    {
+                        Filename = GetImageHashName(imageToDownload),
+                        ImageUrl = imageToDownload
+                    });
+                }
+
+                return new OkObjectResult($"Valid request to refresh '{imagesToDownload.Length}' images.");
+            }
+            catch (Exception e)
+            {
+                log.LogError(e, "An error occured");
+                return new BadRequestObjectResult("An unknown error occured processing request");
+            }
+        }
+
+        private static readonly MD5 Md5 = MD5.Create();
+
+        private static string GetImageHashName(string imageUrl)
+        {
+            var hashBytes = Md5.ComputeHash(Encoding.UTF8.GetBytes(imageUrl));
+            var hash = Convert.ToBase64String(hashBytes);
+            var fileExtension = Path.GetExtension(imageUrl);
+            return hash + fileExtension;
         }
 
         // refresh images function

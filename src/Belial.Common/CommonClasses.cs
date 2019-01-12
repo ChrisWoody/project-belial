@@ -10,6 +10,7 @@
         public int? SeriesNumber { get; set; }
         public string[] AnthologyStories { get; set; }
         public string Type { get; set; }
+        public string OriginalImageUrl { get; set; }
         public string FullImageUrl { get; set; }
     }
 

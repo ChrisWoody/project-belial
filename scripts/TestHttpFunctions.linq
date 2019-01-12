@@ -16,10 +16,11 @@ private const string SpreadsheetId = "";
 
 async Task Main()
 {
-    await HitGetBooksForUserEndpoint();
+    await HitGetBooksEndpoint();
+	//await HitRefreshImagesEndpoint();
 }
 
-private async Task HitGetBooksForUserEndpoint()
+private async Task HitGetBooksEndpoint()
 {
 	var response = await HttpClient.GetAsync($"http://127.0.0.1:7071/api/GetBooks/{SpreadsheetId}");
     //var response = await httpClient.GetAsync($"http://127.0.0.1:7071/api/GetBooks/{SpreadsheetId}?code=<functionkey>", responseContent);
@@ -28,4 +29,17 @@ private async Task HitGetBooksForUserEndpoint()
     JsonConvert.DeserializeObject<Book>(responseContent).Dump();
     response.Dump("Full Response");
     response.EnsureSuccessStatusCode();
+}
+
+private async Task HitRefreshImagesEndpoint()
+{
+	var images = "[\"https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg\",\"https://images-na.ssl-images-amazon.com/images/I/8147jfELDHL.jpg\"]";
+	var requestContent = new StringContent(images, Encoding.UTF8, "application/json");
+
+	var response = await HttpClient.PostAsync("http://127.0.0.1:7071/api/RefreshImages", requestContent);
+	//var response = await httpClient.PostAsync("http://127.0.0.1:7071/api/RefreshImages?code=<functionkey>", responseContent);
+
+	(await response.Content.ReadAsStringAsync()).Dump("Response Content");
+	response.Dump("Full Response");
+	response.EnsureSuccessStatusCode();
 }
