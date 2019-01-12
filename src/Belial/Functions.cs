@@ -18,9 +18,10 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.WindowsAzure.Storage;
-using Microsoft.WindowsAzure.Storage.Blob;
-using Microsoft.WindowsAzure.Storage.Table;
 using Newtonsoft.Json;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.Primitives;
 
 namespace Belial
 {
@@ -41,7 +42,7 @@ namespace Belial
                 var connection = Environment.GetEnvironmentVariable("AzureWebJobsStorage");
                 var blobEndpoint = CloudStorageAccount.Parse(connection).BlobEndpoint.ToString();
 
-                var books = await GetBooks(spreadsheetId);
+                var books = await GetBooks(spreadsheetId, blobEndpoint);
 
                 return new OkObjectResult(JsonConvert.SerializeObject(books));
             }
@@ -52,7 +53,7 @@ namespace Belial
             }
         }
 
-        private static async Task<List<Book>> GetBooks(string spreadsheetId)
+        private static async Task<List<Book>> GetBooks(string spreadsheetId, string blobEndpoint)
         {
             UserCredential credential;
 
@@ -87,6 +88,9 @@ namespace Belial
                     if (int.TryParse((string)book[1], out var validSeriesNumber))
                         seriesNumber = validSeriesNumber;
 
+                    var originalImageUrl = book.Count > 6 ? ((string)book[6]) : null;
+                    var fullImageUrl = originalImageUrl != null ? $"{blobEndpoint}/image-smaller/{GetImageHashName(originalImageUrl)}" : null;
+
                     books.Add(new Book
                     {
                         Title = (string)book[0],
@@ -96,8 +100,8 @@ namespace Belial
                         Isbn = (string)book[3],
                         HasRead = ((string)book[4]) == "Yes",
                         AnthologyStories = book.Count > 5 && !string.IsNullOrWhiteSpace((string)book[5]) ? ((string)book[5]).Split('|') : null,
-                        OriginalImageUrl = book.Count > 6 ? ((string)book[6]) : null,
-                        FullImageUrl = ""
+                        OriginalImageUrl = originalImageUrl,
+                        FullImageUrl = fullImageUrl
                     });
                 }
             }
@@ -147,9 +151,6 @@ namespace Belial
             return hash + fileExtension;
         }
 
-        // refresh images function
-        // could have options, ie. hard refresh everything (download everything again), soft refresh (download everything that doesn't exist, so function will need to check)
-
         internal static IStreamProvider StreamProvider = new StreamProvider();
 
         // This will just overwrite an image even if it exists for now
@@ -165,7 +166,19 @@ namespace Belial
             await imageStream.CopyToAsync(imageBlobStream);
         }
 
-        // blob trigger to a smaller image, likely different container
+        [FunctionName("ProcessOriginalImage")]
+        public static async Task ProcessOriginalImageFunction(
+            [BlobTrigger("image-original/{filename}")] Stream originalImageStream,
+            ILogger log,
+            string filename,
+            [Blob("image-smaller/{filename}", FileAccess.Write)] Stream smallerImageStream)
+        {
+            log.LogInformation("Process Original Image function called for: " + filename);
+
+            var image = Image.Load(originalImageStream);
+            image.Mutate(x => x.Resize(new ResizeOptions {Mode = ResizeMode.Max, Size = new Size(200, 320)}));
+            image.SaveAsJpeg(smallerImageStream);
+        }
     }
 
     public class StreamProvider : IStreamProvider
