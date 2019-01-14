@@ -29,7 +29,41 @@ else
         <button onclick="@GetBooksForUser">Refresh</button>
         <button onclick="@RefreshAllImages">Refresh all images</button>
         <button onclick="@RefreshUi">Refresh UI</button>
-        <p>@Books.Length books found!</p>
+        <table style="border: 1px solid black">
+            <tr>
+                <th>Series</th>
+                <th>Total Count</th>
+                <th>Read Count</th>
+                <th>Not Read Count</th>
+                <th>Physical Total Count</th>
+                <th>Physical Read Count</th>
+                <th>Physical Not Read Count</th>
+                <th>Ebook Total Count</th>
+                <th>Ebook Read Count</th>
+                <th>Ebook Not Read Count</th>
+                <th>Audio Total Count</th>
+                <th>Audio Read Count</th>
+                <th>Audio Not Read Count</th>
+            </tr>
+            @foreach (var bookSeriesStats in _bookSeriesStats)
+            {
+                <tr>
+                    <td>@bookSeriesStats.Series</td>
+                    <td>@bookSeriesStats.TotalCount</td>
+                    <td>@bookSeriesStats.TotalRead</td>
+                    <td>@bookSeriesStats.TotalNotRead</td>
+                    <td>@bookSeriesStats.TotalPhysicalCount</td>
+                    <td>@bookSeriesStats.TotalPhysicalRead</td>
+                    <td>@bookSeriesStats.TotalPhysicalNotRead</td>
+                    <td>@bookSeriesStats.TotalEbookCount</td>
+                    <td>@bookSeriesStats.TotalEbookRead</td>
+                    <td>@bookSeriesStats.TotalEbookNotRead</td>
+                    <td>@bookSeriesStats.TotalAudioCount</td>
+                    <td>@bookSeriesStats.TotalAudioRead</td>
+                    <td>@bookSeriesStats.TotalAudioNotRead</td>
+                </tr>
+            }
+        </table>
 
         <div class="album py-5 bg-light">
             <div class="container-fluid">
@@ -74,6 +108,7 @@ else
     private string SpreadsheetId;
     private bool IsSetup;
     private Book[] Books;
+    private BookSeriesStats[] _bookSeriesStats;
 
     private async Task Setup()
     {
@@ -85,6 +120,44 @@ else
     private async Task GetBooksForUser()
     {
         Books = await httpClient.GetJsonAsync<Book[]>($"{WebsiteUrl}/api/GetBooks/{SpreadsheetId}");
+
+        _bookSeriesStats = Books.GroupBy(b => b.Series)
+            .Select(b => new BookSeriesStats
+            {
+                Series = b.Key,
+                TotalCount = b.Count(),
+                TotalRead = b.Count(x => x.HasRead),
+                TotalNotRead = b.Count(x => !x.HasRead),
+                TotalPhysicalCount = b.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD"),
+                TotalPhysicalRead = b.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && x.HasRead),
+                TotalPhysicalNotRead = b.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && !x.HasRead),
+                TotalEbookCount = b.Count(x => x.Type == "ebook"),
+                TotalEbookRead = b.Count(x => x.Type == "ebook" && x.HasRead),
+                TotalEbookNotRead = b.Count(x => x.Type == "ebook" && !x.HasRead),
+                TotalAudioCount = b.Count(x => (x.Type == "MP3" || x.Type == "Audio CD")),
+                TotalAudioRead = b.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && x.HasRead),
+                TotalAudioNotRead = b.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && !x.HasRead),
+            })
+            .Concat(new[]
+            {
+                new BookSeriesStats
+                {
+                    Series = "Total",
+                    TotalCount = Books.Length,
+                    TotalRead = Books.Count(b => b.HasRead),
+                    TotalNotRead = Books.Count(b => !b.HasRead),
+                    TotalPhysicalCount = Books.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD"),
+                    TotalPhysicalRead = Books.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && x.HasRead),
+                    TotalPhysicalNotRead = Books.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && !x.HasRead),
+                    TotalEbookCount = Books.Count(x => x.Type == "ebook"),
+                    TotalEbookRead = Books.Count(x => x.Type == "ebook" && x.HasRead),
+                    TotalEbookNotRead = Books.Count(x => x.Type == "ebook" && !x.HasRead),
+                    TotalAudioCount = Books.Count(x => (x.Type == "MP3" || x.Type == "Audio CD")),
+                    TotalAudioRead = Books.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && x.HasRead),
+                    TotalAudioNotRead = Books.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && !x.HasRead),
+                }
+            })
+            .ToArray();
     }
 
     private async Task SetBookHasRead(Book book, bool hasRead)
@@ -102,5 +175,22 @@ else
     private async Task RefreshUi()
     {
         base.StateHasChanged();
+    }
+
+    private class BookSeriesStats
+    {
+        public string Series { get; set; }
+        public int TotalCount { get; set; }
+        public int TotalRead { get; set; }
+        public int TotalNotRead { get; set; }
+        public int TotalPhysicalCount { get; set; }
+        public int TotalPhysicalRead { get; set; }
+        public int TotalPhysicalNotRead { get; set; }
+        public int TotalEbookCount { get; set; }
+        public int TotalEbookRead { get; set; }
+        public int TotalEbookNotRead { get; set; }
+        public int TotalAudioCount { get; set; }
+        public int TotalAudioRead { get; set; }
+        public int TotalAudioNotRead { get; set; }
     }
 }
