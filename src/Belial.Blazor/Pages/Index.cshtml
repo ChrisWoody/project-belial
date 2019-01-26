@@ -22,6 +22,7 @@ else
 
     if (Books == null)
     {
+        <p>Error: @ErrorThing</p>
         <p>Getting books...</p>
     }
     else
@@ -109,6 +110,7 @@ else
     private bool IsSetup;
     private Book[] Books;
     private BookSeriesStats[] _bookSeriesStats;
+    private string ErrorThing;
 
     private async Task Setup()
     {
@@ -119,27 +121,34 @@ else
 
     private async Task GetBooksForUser()
     {
-        Books = await httpClient.GetJsonAsync<Book[]>($"{WebsiteUrl}/api/GetBooks/{SpreadsheetId}");
+        try
+        {
+            Books = await httpClient.GetJsonAsync<Book[]>($"{WebsiteUrl}/api/GetBooks/{SpreadsheetId}");
+        }
+        catch (Exception e)
+        {
+            ErrorThing = e.Message;
+        }
 
         _bookSeriesStats = Books.GroupBy(b => b.Series)
-            .Select(b => new BookSeriesStats
-            {
-                Series = b.Key,
-                TotalCount = b.Count(),
-                TotalRead = b.Count(x => x.HasRead),
-                TotalNotRead = b.Count(x => !x.HasRead),
-                TotalPhysicalCount = b.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD"),
-                TotalPhysicalRead = b.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && x.HasRead),
-                TotalPhysicalNotRead = b.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && !x.HasRead),
-                TotalEbookCount = b.Count(x => x.Type == "ebook"),
-                TotalEbookRead = b.Count(x => x.Type == "ebook" && x.HasRead),
-                TotalEbookNotRead = b.Count(x => x.Type == "ebook" && !x.HasRead),
-                TotalAudioCount = b.Count(x => (x.Type == "MP3" || x.Type == "Audio CD")),
-                TotalAudioRead = b.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && x.HasRead),
-                TotalAudioNotRead = b.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && !x.HasRead),
-            })
-            .Concat(new[]
-            {
+        .Select(b => new BookSeriesStats
+        {
+            Series = b.Key,
+            TotalCount = b.Count(),
+            TotalRead = b.Count(x => x.HasRead),
+            TotalNotRead = b.Count(x => !x.HasRead),
+            TotalPhysicalCount = b.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD"),
+            TotalPhysicalRead = b.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && x.HasRead),
+            TotalPhysicalNotRead = b.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && !x.HasRead),
+            TotalEbookCount = b.Count(x => x.Type == "ebook"),
+            TotalEbookRead = b.Count(x => x.Type == "ebook" && x.HasRead),
+            TotalEbookNotRead = b.Count(x => x.Type == "ebook" && !x.HasRead),
+            TotalAudioCount = b.Count(x => (x.Type == "MP3" || x.Type == "Audio CD")),
+            TotalAudioRead = b.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && x.HasRead),
+            TotalAudioNotRead = b.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && !x.HasRead),
+        })
+        .Concat(new[]
+        {
                 new BookSeriesStats
                 {
                     Series = "Total",
@@ -156,8 +165,8 @@ else
                     TotalAudioRead = Books.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && x.HasRead),
                     TotalAudioNotRead = Books.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && !x.HasRead),
                 }
-            })
-            .ToArray();
+        })
+        .ToArray();
     }
 
     private async Task SetBookHasRead(Book book, bool hasRead)
