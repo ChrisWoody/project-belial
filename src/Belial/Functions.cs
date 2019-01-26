@@ -56,15 +56,18 @@ namespace Belial
         private static async Task<List<Book>> GetBooks(string spreadsheetId, string blobEndpoint)
         {
             UserCredential credential;
+            var credPath = string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBSITE_INSTANCE_ID"))
+                ? ""
+                : @"D:\home\site\wwwroot";
 
-            using (var stream = new FileStream("credentials.json", FileMode.Open, FileAccess.Read))
+            using (var stream = new FileStream(Path.Combine(credPath, "credentials.json"), FileMode.Open, FileAccess.Read))
             {
                 credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
                     GoogleClientSecrets.Load(stream).Secrets,
                     new[] { SheetsService.Scope.SpreadsheetsReadonly },
                     "user",
                     CancellationToken.None,
-                    new FileDataStore("token.json", true));
+                    new FileDataStore(Path.Combine(credPath, "token.json"), true));
             }
 
             var service = new SheetsService(new BaseClientService.Initializer()

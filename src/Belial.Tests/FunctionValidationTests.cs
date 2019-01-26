@@ -36,7 +36,8 @@ namespace Belial.Tests
 
                     if (parameters.Any(p =>
                         p.GetCustomAttribute<HttpTriggerAttribute>() != null ||
-                        p.GetCustomAttribute<QueueTriggerAttribute>() != null))
+                        p.GetCustomAttribute<QueueTriggerAttribute>() != null ||
+                        p.GetCustomAttribute<BlobTriggerAttribute>() != null))
                         return null;
 
                     return x.Name;

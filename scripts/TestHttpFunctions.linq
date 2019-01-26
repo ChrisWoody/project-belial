@@ -11,35 +11,34 @@
 </Query>
 
 HttpClient HttpClient = new HttpClient();
-public static Guid UserId = Guid.Parse("63CDBDDD-CE8C-411D-BA1E-0174FA19C05C");
 private const string SpreadsheetId = "";
 
 async Task Main()
 {
     await HitGetBooksEndpoint();
-	//await HitRefreshImagesEndpoint();
+    //await HitRefreshImagesEndpoint();
 }
 
 private async Task HitGetBooksEndpoint()
 {
-	var response = await HttpClient.GetAsync($"http://127.0.0.1:7071/api/GetBooks/{SpreadsheetId}");
-    //var response = await httpClient.GetAsync($"http://127.0.0.1:7071/api/GetBooks/{SpreadsheetId}?code=<functionkey>", responseContent);
+    var response = await HttpClient.GetAsync($"http://127.0.0.1:7071/api/GetBooks/{SpreadsheetId}");
+    //var response = await HttpClient.GetAsync($"https:///api/GetBooks/{SpreadsheetId}?code=);
 
     var responseContent = (await response.Content.ReadAsStringAsync()).Dump("Response Content");
-    JsonConvert.DeserializeObject<Book>(responseContent).Dump();
+    JsonConvert.DeserializeObject<Book[]>(responseContent).Dump();
     response.Dump("Full Response");
     response.EnsureSuccessStatusCode();
 }
 
 private async Task HitRefreshImagesEndpoint()
 {
-	var images = "[\"https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg\",\"https://images-na.ssl-images-amazon.com/images/I/8147jfELDHL.jpg\"]";
-	var requestContent = new StringContent(images, Encoding.UTF8, "application/json");
+    var images = "[\"https://images-na.ssl-images-amazon.com/images/I/816K5KxglLL.jpg\",\"https://images-na.ssl-images-amazon.com/images/I/8147jfELDHL.jpg\"]";
+    var requestContent = new StringContent(images, Encoding.UTF8, "application/json");
 
-	var response = await HttpClient.PostAsync("http://127.0.0.1:7071/api/RefreshImages", requestContent);
-	//var response = await httpClient.PostAsync("http://127.0.0.1:7071/api/RefreshImages?code=<functionkey>", responseContent);
+    var response = await HttpClient.PostAsync("http://127.0.0.1:7071/api/RefreshImages", requestContent);
+    //var response = await httpClient.PostAsync("http://127.0.0.1:7071/api/RefreshImages?code=<functionkey>", responseContent);
 
-	(await response.Content.ReadAsStringAsync()).Dump("Response Content");
-	response.Dump("Full Response");
-	response.EnsureSuccessStatusCode();
+    (await response.Content.ReadAsStringAsync()).Dump("Response Content");
+    response.Dump("Full Response");
+    response.EnsureSuccessStatusCode();
 }
