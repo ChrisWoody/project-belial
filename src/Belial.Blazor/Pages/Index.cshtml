@@ -2,27 +2,29 @@
 @using System.Text
 @using Belial.Common
 @using Newtonsoft.Json
-@inject HttpClient httpClient
+@inject HttpClient HttpClient
 
 <h1>Project Belial</h1>
 
-@if (!IsSetup)
+@if (!string.IsNullOrWhiteSpace(_errorMessage))
+{
+<p>Error: @_errorMessage</p>
+}
+
+@if (!_isSetup)
 {
     <p>Specify the full function url to query for the user's books</p>
 
-    <label>Website Url: </label><input type="text" bind="@WebsiteUrl" />
-    <p/>
-    <label>Spreadsheet Id: </label><input type="text" bind="@SpreadsheetId" />
+    <label>Required website details: </label><input type="text" bind="@_websiteDetails" width="400" />
     <p/>
     <button onclick="@Setup">Submit</button>
 }
 else
 {
-    <p>You've specified the url: <a href="@WebsiteUrl">@WebsiteUrl</a></p>
+    <p>You've specified the details: <a href="@_websiteDetails">@_websiteDetails</a></p>
 
-    if (Books == null)
+    if (_books == null)
     {
-        <p>Error: @ErrorThing</p>
         <p>Getting books...</p>
     }
     else
@@ -71,7 +73,7 @@ else
 
                 <div class="row">
 
-                    @foreach (var book in Books)
+                    @foreach (var book in _books)
                     {
 
                         <div class="col-auto">
@@ -105,16 +107,29 @@ else
 
 @functions
 {
-    private string WebsiteUrl = "http://127.0.0.1:7071";
-    private string SpreadsheetId;
-    private bool IsSetup;
-    private Book[] Books;
+    private string _functionAppUrl;
+    private string _functionAppKey;
+    private string _spreadsheetId;
+    private string _websiteDetails;
+    private bool _isSetup;
+    private Book[] _books;
     private BookSeriesStats[] _bookSeriesStats;
-    private string ErrorThing;
+    private string _errorMessage;
 
     private async Task Setup()
     {
-        IsSetup = true;
+        var split = _websiteDetails.Split('|');
+        if (split.Length < 2 || split.Length > 3)
+        {
+            _errorMessage = "Invalid website details specified";
+            return;
+        }
+
+        _functionAppUrl = split[0];
+        _spreadsheetId = split[1];
+        _functionAppKey = split.Length == 3 ? $"?code={split[2]}" : "";
+
+        _isSetup = true;
 
         await GetBooksForUser();
     }
@@ -123,14 +138,14 @@ else
     {
         try
         {
-            Books = await httpClient.GetJsonAsync<Book[]>($"{WebsiteUrl}/api/GetBooks/{SpreadsheetId}");
+            _books = await HttpClient.GetJsonAsync<Book[]>($"{_functionAppUrl}/api/GetBooks/{_spreadsheetId}{_functionAppKey}");
         }
         catch (Exception e)
         {
-            ErrorThing = e.Message;
+            _errorMessage = e.Message;
         }
 
-        _bookSeriesStats = Books.GroupBy(b => b.Series)
+        _bookSeriesStats = _books.GroupBy(b => b.Series)
         .Select(b => new BookSeriesStats
         {
             Series = b.Key,
@@ -152,18 +167,18 @@ else
                 new BookSeriesStats
                 {
                     Series = "Total",
-                    TotalCount = Books.Length,
-                    TotalRead = Books.Count(b => b.HasRead),
-                    TotalNotRead = Books.Count(b => !b.HasRead),
-                    TotalPhysicalCount = Books.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD"),
-                    TotalPhysicalRead = Books.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && x.HasRead),
-                    TotalPhysicalNotRead = Books.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && !x.HasRead),
-                    TotalEbookCount = Books.Count(x => x.Type == "ebook"),
-                    TotalEbookRead = Books.Count(x => x.Type == "ebook" && x.HasRead),
-                    TotalEbookNotRead = Books.Count(x => x.Type == "ebook" && !x.HasRead),
-                    TotalAudioCount = Books.Count(x => (x.Type == "MP3" || x.Type == "Audio CD")),
-                    TotalAudioRead = Books.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && x.HasRead),
-                    TotalAudioNotRead = Books.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && !x.HasRead),
+                    TotalCount = _books.Length,
+                    TotalRead = _books.Count(b => b.HasRead),
+                    TotalNotRead = _books.Count(b => !b.HasRead),
+                    TotalPhysicalCount = _books.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD"),
+                    TotalPhysicalRead = _books.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && x.HasRead),
+                    TotalPhysicalNotRead = _books.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && !x.HasRead),
+                    TotalEbookCount = _books.Count(x => x.Type == "ebook"),
+                    TotalEbookRead = _books.Count(x => x.Type == "ebook" && x.HasRead),
+                    TotalEbookNotRead = _books.Count(x => x.Type == "ebook" && !x.HasRead),
+                    TotalAudioCount = _books.Count(x => (x.Type == "MP3" || x.Type == "Audio CD")),
+                    TotalAudioRead = _books.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && x.HasRead),
+                    TotalAudioNotRead = _books.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && !x.HasRead),
                 }
         })
         .ToArray();
@@ -176,8 +191,8 @@ else
 
     private async Task RefreshAllImages()
     {
-        var content = new StringContent(JsonConvert.SerializeObject(Books.Where(c => !string.IsNullOrWhiteSpace(c.OriginalImageUrl)).Select(c => c.OriginalImageUrl)), Encoding.UTF8, "application/json");
-        var response = await httpClient.PostAsync($"{WebsiteUrl}/api/RefreshImages", content);
+        var content = new StringContent(JsonConvert.SerializeObject(_books.Where(c => !string.IsNullOrWhiteSpace(c.OriginalImageUrl)).Select(c => c.OriginalImageUrl)), Encoding.UTF8, "application/json");
+        var response = await HttpClient.PostAsync($"{_functionAppUrl}/api/RefreshImages{_functionAppKey}", content);
         response.EnsureSuccessStatusCode();
     }
 
