@@ -92,7 +92,7 @@ namespace Belial
                         seriesNumber = validSeriesNumber;
 
                     var originalImageUrl = book.Count > 6 ? ((string)book[6]) : null;
-                    var fullImageUrl = originalImageUrl != null ? $"{blobEndpoint}/image-smaller/{GetImageHashName(originalImageUrl)}" : null;
+                    var fullImageUrl = originalImageUrl != null ? $"{blobEndpoint}{(credPath == "" ? "/" : "")}image-smaller/{GetImageHashName(originalImageUrl)}" : null;
 
                     books.Add(new Book
                     {
