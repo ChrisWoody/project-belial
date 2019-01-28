@@ -30,10 +30,12 @@ steps:
     }
   displayName: Check for test failures
 
-- script: powershell & "C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\AzCopy.exe" /Source:"$(sheetcredentialstorage)" /SourceKey:"$(storagekey)" /Dest:"src/Belial/bin/Debug/netcoreapp2.1" /S
+- powershell: az storage blob download-batch -d "src/Belial/bin/Debug/netcoreapp2.1" -s $(apicredscontainer) --account-name $(websitestoragename) --account-key "$(websitestoragekey)" --verbose
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
   displayName: 'Prepare Sheet Credentials'
 
 - script: powershell .\scripts\package.ps1
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
   displayName: 'Package'
 
 - script: powershell .\scripts\deploy.ps1 -appServiceName "$(appservicename)" -Username "$(appserviceusername)" -Password "$(appservicepassword)"
@@ -43,3 +45,7 @@ steps:
 - powershell: az storage blob upload-batch -d `$web -s "$(Build.Repository.LocalPath)\src\Belial.Blazor\bin\Release\netstandard2.0\publish\Belial.Blazor\dist" --account-name $(websitestoragename) --account-key "$(websitestoragekey)" --verbose
   condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
   displayName: 'Deploy Website'
+
+- powershell: az storage blob upload -c `$web -n "_framework\wasm\mono.wasm" -f "$(Build.Repository.LocalPath)\src\Belial.Blazor\bin\Release\netstandard2.0\publish\Belial.Blazor\dist\_framework\wasm\mono.wasm" --account-name $(websitestoragename) --account-key "$(websitestoragekey)" --content-type "application/wasm" --verbose
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+  displayName: 'Deploy Website - Wasm'
