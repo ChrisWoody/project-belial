@@ -18,6 +18,7 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Blob;
 using Newtonsoft.Json;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
@@ -92,7 +93,7 @@ namespace Belial
                         seriesNumber = validSeriesNumber;
 
                     var originalImageUrl = book.Count > 6 ? ((string)book[6]) : null;
-                    var fullImageUrl = originalImageUrl != null ? $"{blobEndpoint}image-smaller/{GetImageHashName(originalImageUrl)}" : null;
+                    var fullImageUrl = originalImageUrl != null ? $"{blobEndpoint.TrimEnd('/')}/image-smaller/{GetImageHashName(originalImageUrl)}" : null;
 
                     books.Add(new Book
                     {
@@ -124,18 +125,19 @@ namespace Belial
             try
             {
                 var refreshImagesRequest = await new StreamReader(req.Body).ReadToEndAsync();
-                var imagesToDownload = JsonConvert.DeserializeObject<string[]>(refreshImagesRequest);
+                var refreshImagesHttpMessage = JsonConvert.DeserializeObject<RefreshImagesHttpMessage>(refreshImagesRequest);
 
-                foreach (var imageToDownload in imagesToDownload)
+                foreach (var imageToDownload in refreshImagesHttpMessage.ImageUrlsToDownload)
                 {
                     await downloadImageQueue.AddAsync(new DownloadImageQueueMessage
                     {
                         Filename = GetImageHashName(imageToDownload),
-                        ImageUrl = imageToDownload
+                        ImageUrl = imageToDownload,
+                        DontDownloadIfExists = refreshImagesHttpMessage.DontDownloadIfExists
                     });
                 }
 
-                return new OkObjectResult($"Valid request to refresh '{imagesToDownload.Length}' images.");
+                return new OkObjectResult($"Valid request to refresh '{refreshImagesHttpMessage.ImageUrlsToDownload.Length}' images.");
             }
             catch (Exception e)
             {
@@ -161,12 +163,15 @@ namespace Belial
         public static async Task ProcessDownloadImageQueueFunction(
             [QueueTrigger(DownloadImageQueueName)] DownloadImageQueueMessage downloadImageQueueMessage,
             ILogger log,
-            [Blob("image-original/{Filename}", FileAccess.Write)] Stream imageBlobStream)
+            [Blob("image-original/{Filename}", FileAccess.Write)] CloudBlockBlob outputBlob)
         {
             log.LogInformation("Process Download Image Queue function called");
+            if (downloadImageQueueMessage.DontDownloadIfExists && await outputBlob.ExistsAsync())
+                return;
+
             var imageStream = await StreamProvider.GetStreamAsync(downloadImageQueueMessage.ImageUrl);
 
-            await imageStream.CopyToAsync(imageBlobStream);
+            await outputBlob.UploadFromStreamAsync(imageStream);
         }
 
         [FunctionName("ProcessOriginalImage")]

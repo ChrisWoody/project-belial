@@ -18,5 +18,12 @@
     {
         public string ImageUrl { get; set; }
         public string Filename { get; set; }
+        public bool DontDownloadIfExists { get; set; }
+    }
+
+    public class RefreshImagesHttpMessage
+    {
+        public bool DontDownloadIfExists { get; set; }
+        public string[] ImageUrlsToDownload { get; set; }
     }
 }
