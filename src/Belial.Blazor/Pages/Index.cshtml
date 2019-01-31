@@ -16,14 +16,14 @@
     <p>Specify the full function url to query for the user's books</p>
 
     <label>Required website details: </label><input type="text" bind="@_websiteDetails" width="400" />
-    <p/>
+    <p />
     <button onclick="@Setup">Submit</button>
 }
 else
 {
     <p>You've specified the details: <a href="@_websiteDetails">@_websiteDetails</a></p>
 
-    if (_books == null)
+    if (_filteredBooks == null)
     {
         <p>Getting books...</p>
     }
@@ -32,7 +32,19 @@ else
         <button onclick="@GetBooksForUser">Refresh</button>
         <button onclick="@RefreshAllImages">Refresh all images</button>
         <button onclick="@RefreshMissingImages">Refresh missing images</button>
+        <select bind="@_seriesFilter">
+            @foreach (var series in _series)
+            {
+                <option value="@series">@series</option>
+            }
+        </select>
+        <select bind="@_hasReadFilter">
+            <option value="@HasReadFilter.All">All</option>
+            <option value="@HasReadFilter.HasRead">Has Read</option>
+            <option value="@HasReadFilter.HasNotRead">Has Not Read</option>
+        </select>
         <button onclick="@RefreshUi">Refresh UI</button>
+
         <table style="border: 1px solid black">
             <tr>
                 <th>Series</th>
@@ -74,13 +86,13 @@ else
 
                 <div class="row">
 
-                    @foreach (var book in _books)
+                    @foreach (var book in _filteredBooks)
                     {
                         <div class="col-auto">
                             <div class="card mb-4" style="width: 12.6rem;">
                                 <img src="@book.FullImageUrl" alt="Book image" width="200">
                                 <div class="card-body">
-                                    <p class="card-text">@book.Title<br/>@book.Isbn</p>
+                                    <p class="card-text">@book.Title<br />@book.Isbn</p>
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div class="btn-group">
                                             @if (book.HasRead)
@@ -112,9 +124,14 @@ else
     private string _spreadsheetId;
     private string _websiteDetails;
     private bool _isSetup;
-    private Book[] _books;
+    private Book[] _allBooks;
+    private Book[] _filteredBooks;
     private BookSeriesStats[] _bookSeriesStats;
     private string _errorMessage;
+
+    private string[] _series;
+    private string _seriesFilter = "All";
+    private HasReadFilter _hasReadFilter = HasReadFilter.All;
 
     private async Task Setup()
     {
@@ -138,14 +155,63 @@ else
     {
         try
         {
-            _books = await HttpClient.GetJsonAsync<Book[]>($"{_functionAppUrl}/api/GetBooks/{_spreadsheetId}{_functionAppKey}");
+            _allBooks = await HttpClient.GetJsonAsync<Book[]>($"{_functionAppUrl}/api/GetBooks/{_spreadsheetId}{_functionAppKey}");
+            _series = (new[] { "All" }).Concat(_allBooks.Select(b => b.Series).Distinct().OrderBy(b => b)).ToArray();
+
+            FilterBooks();
         }
         catch (Exception e)
         {
             _errorMessage = e.Message;
         }
+    }
 
-        _bookSeriesStats = _books.GroupBy(b => b.Series)
+    private async Task SetBookHasRead(Book book, bool hasRead)
+    {
+    }
+
+    private async Task RefreshAllImages()
+    {
+        var message = new RefreshImagesHttpMessage
+        {
+            DontDownloadIfExists = false,
+            ImageUrlsToDownload = _filteredBooks.Where(c => !string.IsNullOrWhiteSpace(c.OriginalImageUrl)).Select(c => c.OriginalImageUrl).ToArray()
+        };
+        var content = new StringContent(JsonConvert.SerializeObject(message), Encoding.UTF8, "application/json");
+        var response = await HttpClient.PostAsync($"{_functionAppUrl}/api/RefreshImages{_functionAppKey}", content);
+        response.EnsureSuccessStatusCode();
+    }
+
+    private async Task RefreshMissingImages()
+    {
+        var message = new RefreshImagesHttpMessage
+        {
+            DontDownloadIfExists = true,
+            ImageUrlsToDownload = _filteredBooks.Where(c => !string.IsNullOrWhiteSpace(c.OriginalImageUrl)).Select(c => c.OriginalImageUrl).ToArray()
+        };
+        var content = new StringContent(JsonConvert.SerializeObject(message), Encoding.UTF8, "application/json");
+        var response = await HttpClient.PostAsync($"{_functionAppUrl}/api/RefreshImages{_functionAppKey}", content);
+        response.EnsureSuccessStatusCode();
+    }
+
+    private async Task RefreshUi()
+    {
+        FilterBooks();
+    }
+
+    private void FilterBooks()
+    {
+        _filteredBooks = _allBooks
+            .Where(b => _seriesFilter == "All" || b.Series == _seriesFilter)
+            .Where(b => _hasReadFilter == HasReadFilter.All || (_hasReadFilter == HasReadFilter.HasRead && b.HasRead) ||
+                        (_hasReadFilter == HasReadFilter.HasNotRead && !b.HasRead))
+            .ToArray();
+        UpdateStats();
+    }
+
+    private void UpdateStats()
+    {
+        _bookSeriesStats = _filteredBooks.GroupBy(b => b.Series)
         .Select(b => new BookSeriesStats
         {
             Series = b.Key,
@@ -164,73 +230,47 @@ else
         })
         .Concat(new[]
         {
-                new BookSeriesStats
-                {
-                    Series = "Total",
-                    TotalCount = _books.Length,
-                    TotalRead = _books.Count(b => b.HasRead),
-                    TotalNotRead = _books.Count(b => !b.HasRead),
-                    TotalPhysicalCount = _books.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD"),
-                    TotalPhysicalRead = _books.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && x.HasRead),
-                    TotalPhysicalNotRead = _books.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && !x.HasRead),
-                    TotalEbookCount = _books.Count(x => x.Type == "ebook"),
-                    TotalEbookRead = _books.Count(x => x.Type == "ebook" && x.HasRead),
-                    TotalEbookNotRead = _books.Count(x => x.Type == "ebook" && !x.HasRead),
-                    TotalAudioCount = _books.Count(x => (x.Type == "MP3" || x.Type == "Audio CD")),
-                    TotalAudioRead = _books.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && x.HasRead),
-                    TotalAudioNotRead = _books.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && !x.HasRead),
-                }
+            new BookSeriesStats
+            {
+                Series = "Total",
+                TotalCount = _filteredBooks.Length,
+                TotalRead = _filteredBooks.Count(b => b.HasRead),
+                TotalNotRead = _filteredBooks.Count(b => !b.HasRead),
+                TotalPhysicalCount = _filteredBooks.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD"),
+                TotalPhysicalRead = _filteredBooks.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && x.HasRead),
+                TotalPhysicalNotRead = _filteredBooks.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && !x.HasRead),
+                TotalEbookCount = _filteredBooks.Count(x => x.Type == "ebook"),
+                TotalEbookRead = _filteredBooks.Count(x => x.Type == "ebook" && x.HasRead),
+                TotalEbookNotRead = _filteredBooks.Count(x => x.Type == "ebook" && !x.HasRead),
+                TotalAudioCount = _filteredBooks.Count(x => (x.Type == "MP3" || x.Type == "Audio CD")),
+                TotalAudioRead = _filteredBooks.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && x.HasRead),
+                TotalAudioNotRead = _filteredBooks.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && !x.HasRead),
+            }
         })
         .ToArray();
-    }
+}
 
-    private async Task SetBookHasRead(Book book, bool hasRead)
-    {
-    }
+private class BookSeriesStats
+{
+    public string Series { get; set; }
+    public int TotalCount { get; set; }
+    public int TotalRead { get; set; }
+    public int TotalNotRead { get; set; }
+    public int TotalPhysicalCount { get; set; }
+    public int TotalPhysicalRead { get; set; }
+    public int TotalPhysicalNotRead { get; set; }
+    public int TotalEbookCount { get; set; }
+    public int TotalEbookRead { get; set; }
+    public int TotalEbookNotRead { get; set; }
+    public int TotalAudioCount { get; set; }
+    public int TotalAudioRead { get; set; }
+    public int TotalAudioNotRead { get; set; }
+}
 
-    private async Task RefreshAllImages()
-    {
-        var message = new RefreshImagesHttpMessage
-        {
-            DontDownloadIfExists = false,
-            ImageUrlsToDownload = _books.Where(c => !string.IsNullOrWhiteSpace(c.OriginalImageUrl)).Select(c => c.OriginalImageUrl).ToArray()
-        };
-        var content = new StringContent(JsonConvert.SerializeObject(message), Encoding.UTF8, "application/json");
-        var response = await HttpClient.PostAsync($"{_functionAppUrl}/api/RefreshImages{_functionAppKey}", content);
-        response.EnsureSuccessStatusCode();
-    }
-
-    private async Task RefreshMissingImages()
-    {
-        var message = new RefreshImagesHttpMessage
-        {
-            DontDownloadIfExists = true,
-            ImageUrlsToDownload = _books.Where(c => !string.IsNullOrWhiteSpace(c.OriginalImageUrl)).Select(c => c.OriginalImageUrl).ToArray()
-        };
-        var content = new StringContent(JsonConvert.SerializeObject(message), Encoding.UTF8, "application/json");
-        var response = await HttpClient.PostAsync($"{_functionAppUrl}/api/RefreshImages{_functionAppKey}", content);
-        response.EnsureSuccessStatusCode();
-    }
-
-    private async Task RefreshUi()
-    {
-        base.StateHasChanged();
-    }
-
-    private class BookSeriesStats
-    {
-        public string Series { get; set; }
-        public int TotalCount { get; set; }
-        public int TotalRead { get; set; }
-        public int TotalNotRead { get; set; }
-        public int TotalPhysicalCount { get; set; }
-        public int TotalPhysicalRead { get; set; }
-        public int TotalPhysicalNotRead { get; set; }
-        public int TotalEbookCount { get; set; }
-        public int TotalEbookRead { get; set; }
-        public int TotalEbookNotRead { get; set; }
-        public int TotalAudioCount { get; set; }
-        public int TotalAudioRead { get; set; }
-        public int TotalAudioNotRead { get; set; }
-    }
+private enum HasReadFilter
+{
+    All,
+    HasRead,
+    HasNotRead,
+}
 }
