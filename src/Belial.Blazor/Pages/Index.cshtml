@@ -1,7 +1,10 @@
 ﻿@page "/"
 @using System.Text
 @using Belial.Common
+@using Microsoft.AspNetCore.Blazor.Services
+@using Microsoft.AspNetCore.WebUtilities
 @using Newtonsoft.Json
+@inject IUriHelper UriHelper
 @inject HttpClient HttpClient
 
 <h1>Project Belial</h1>
@@ -13,16 +16,10 @@
 
 @if (!_isSetup)
 {
-    <p>Specify the full function url to query for the user's books</p>
-
-    <label>Required website details: </label><input type="text" bind="@_websiteDetails" width="400" />
-    <p />
-    <button onclick="@Setup">Submit</button>
+    <p>Specify the required details in the URL.</p>
 }
 else
 {
-    <p>You've specified the details: <a href="@_websiteDetails">@_websiteDetails</a></p>
-
     if (_filteredBooks == null)
     {
         <p>Getting books...</p>
@@ -44,6 +41,40 @@ else
             <option value="@HasReadFilter.HasNotRead">Has Not Read</option>
         </select>
         <button onclick="@RefreshUi">Refresh UI</button>
+        <br/>
+        <p>
+            <span class="h5">Total: </span><span class="h3" style="margin-right:.5em">@_totalCount</span><span class="h5">Read: </span><span class="h3" style="margin-right:.5em">@_totalReadCount</span><span class="h5">Not Read: </span><span class="h3">@_totalNotReadCount</span>
+        </p>
+
+        <div class="album py-5 bg-light">
+            <div class="container-fluid">
+
+                <div class="row">
+
+                    @foreach (var book in _filteredBooks)
+                    {
+                        <div class="col-auto">
+                            <div class="card mb-4" style="width: 12.6rem;">
+                                <img src="@book.FullImageUrl" alt="Book image" width="200">
+                                <div class="card-body">
+                                    <p class="card-text">@book.Title<br />@book.Isbn</p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="btn-group">
+                                            @if (book.HasRead)
+                                            {<button class="btn btn-sm btn-success">Have Read</button> }
+                                            else
+                                            { <button class="btn btn-sm btn-warning">Have Not Read</button>}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                </div>
+
+            </div>
+        </div>
 
         <table style="border: 1px solid black">
             <tr>
@@ -80,40 +111,6 @@ else
                 </tr>
             }
         </table>
-
-        <div class="album py-5 bg-light">
-            <div class="container-fluid">
-
-                <div class="row">
-
-                    @foreach (var book in _filteredBooks)
-                    {
-                        <div class="col-auto">
-                            <div class="card mb-4" style="width: 12.6rem;">
-                                <img src="@book.FullImageUrl" alt="Book image" width="200">
-                                <div class="card-body">
-                                    <p class="card-text">@book.Title<br />@book.Isbn</p>
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div class="btn-group">
-                                            @if (book.HasRead)
-                                            {
-                                                <button onclick=@(() => SetBookHasRead(book, false)) class="btn btn-sm btn-success">Have Read</button>
-                                            }
-                                            else
-                                            {
-                                                <button onclick=@(() => SetBookHasRead(book, true)) class="btn btn-sm btn-warning">Have Not Read</button>
-                                            }
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    }
-
-                </div>
-
-            </div>
-        </div>
     }
 }
 
@@ -122,7 +119,6 @@ else
     private string _functionAppUrl;
     private string _functionAppKey;
     private string _spreadsheetId;
-    private string _websiteDetails;
     private bool _isSetup;
     private Book[] _allBooks;
     private Book[] _filteredBooks;
@@ -133,22 +129,28 @@ else
     private string _seriesFilter = "All";
     private HasReadFilter _hasReadFilter = HasReadFilter.All;
 
-    private async Task Setup()
+    private int _totalCount;
+    private int _totalReadCount;
+    private int _totalNotReadCount;
+
+    protected override void OnInit()
     {
-        var split = _websiteDetails.Split('|');
-        if (split.Length < 2 || split.Length > 3)
+        var uri = new Uri(UriHelper.GetAbsoluteUri());
+        QueryHelpers.ParseQuery(uri.Query).TryGetValue("functionAppUrl", out var functionAppUrl);
+        QueryHelpers.ParseQuery(uri.Query).TryGetValue("functionAppKey", out var functionAppKey);
+        QueryHelpers.ParseQuery(uri.Query).TryGetValue("spreadsheetId", out var spreadsheetId);
+
+        if (!string.IsNullOrWhiteSpace(functionAppUrl) && !string.IsNullOrWhiteSpace(spreadsheetId))
         {
-            _errorMessage = "Invalid website details specified";
-            return;
+            _functionAppUrl = functionAppUrl.Single();
+            _functionAppKey = functionAppKey.SingleOrDefault();
+            _spreadsheetId = spreadsheetId.Single();
+
+            _isSetup = true;
+            StateHasChanged();
+
+            Task.Run(GetBooksForUser);
         }
-
-        _functionAppUrl = split[0];
-        _spreadsheetId = split[1];
-        _functionAppKey = split.Length == 3 ? $"?code={split[2]}" : "";
-
-        _isSetup = true;
-
-        await GetBooksForUser();
     }
 
     private async Task GetBooksForUser()
@@ -164,10 +166,6 @@ else
         {
             _errorMessage = e.Message;
         }
-    }
-
-    private async Task SetBookHasRead(Book book, bool hasRead)
-    {
     }
 
     private async Task RefreshAllImages()
@@ -207,10 +205,15 @@ else
                         (_hasReadFilter == HasReadFilter.HasNotRead && !b.HasRead))
             .ToArray();
         UpdateStats();
+        StateHasChanged();
     }
 
     private void UpdateStats()
     {
+        _totalCount = _filteredBooks.Length;
+        _totalReadCount = _filteredBooks.Count(b => b.HasRead);
+        _totalNotReadCount = _filteredBooks.Count(b => !b.HasRead);
+
         _bookSeriesStats = _filteredBooks.GroupBy(b => b.Series)
         .Select(b => new BookSeriesStats
         {
@@ -230,47 +233,47 @@ else
         })
         .Concat(new[]
         {
-            new BookSeriesStats
-            {
-                Series = "Total",
-                TotalCount = _filteredBooks.Length,
-                TotalRead = _filteredBooks.Count(b => b.HasRead),
-                TotalNotRead = _filteredBooks.Count(b => !b.HasRead),
-                TotalPhysicalCount = _filteredBooks.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD"),
-                TotalPhysicalRead = _filteredBooks.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && x.HasRead),
-                TotalPhysicalNotRead = _filteredBooks.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && !x.HasRead),
-                TotalEbookCount = _filteredBooks.Count(x => x.Type == "ebook"),
-                TotalEbookRead = _filteredBooks.Count(x => x.Type == "ebook" && x.HasRead),
-                TotalEbookNotRead = _filteredBooks.Count(x => x.Type == "ebook" && !x.HasRead),
-                TotalAudioCount = _filteredBooks.Count(x => (x.Type == "MP3" || x.Type == "Audio CD")),
-                TotalAudioRead = _filteredBooks.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && x.HasRead),
-                TotalAudioNotRead = _filteredBooks.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && !x.HasRead),
-            }
+    new BookSeriesStats
+    {
+        Series = "Total",
+        TotalCount = _filteredBooks.Length,
+        TotalRead = _filteredBooks.Count(b => b.HasRead),
+        TotalNotRead = _filteredBooks.Count(b => !b.HasRead),
+        TotalPhysicalCount = _filteredBooks.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD"),
+        TotalPhysicalRead = _filteredBooks.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && x.HasRead),
+        TotalPhysicalNotRead = _filteredBooks.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && !x.HasRead),
+        TotalEbookCount = _filteredBooks.Count(x => x.Type == "ebook"),
+        TotalEbookRead = _filteredBooks.Count(x => x.Type == "ebook" && x.HasRead),
+        TotalEbookNotRead = _filteredBooks.Count(x => x.Type == "ebook" && !x.HasRead),
+        TotalAudioCount = _filteredBooks.Count(x => (x.Type == "MP3" || x.Type == "Audio CD")),
+        TotalAudioRead = _filteredBooks.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && x.HasRead),
+        TotalAudioNotRead = _filteredBooks.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && !x.HasRead),
+    }
         })
         .ToArray();
-}
+    }
 
-private class BookSeriesStats
-{
-    public string Series { get; set; }
-    public int TotalCount { get; set; }
-    public int TotalRead { get; set; }
-    public int TotalNotRead { get; set; }
-    public int TotalPhysicalCount { get; set; }
-    public int TotalPhysicalRead { get; set; }
-    public int TotalPhysicalNotRead { get; set; }
-    public int TotalEbookCount { get; set; }
-    public int TotalEbookRead { get; set; }
-    public int TotalEbookNotRead { get; set; }
-    public int TotalAudioCount { get; set; }
-    public int TotalAudioRead { get; set; }
-    public int TotalAudioNotRead { get; set; }
-}
+    private class BookSeriesStats
+    {
+        public string Series { get; set; }
+        public int TotalCount { get; set; }
+        public int TotalRead { get; set; }
+        public int TotalNotRead { get; set; }
+        public int TotalPhysicalCount { get; set; }
+        public int TotalPhysicalRead { get; set; }
+        public int TotalPhysicalNotRead { get; set; }
+        public int TotalEbookCount { get; set; }
+        public int TotalEbookRead { get; set; }
+        public int TotalEbookNotRead { get; set; }
+        public int TotalAudioCount { get; set; }
+        public int TotalAudioRead { get; set; }
+        public int TotalAudioNotRead { get; set; }
+    }
 
-private enum HasReadFilter
-{
-    All,
-    HasRead,
-    HasNotRead,
-}
+    private enum HasReadFilter
+    {
+        All,
+        HasRead,
+        HasNotRead,
+    }
 }
