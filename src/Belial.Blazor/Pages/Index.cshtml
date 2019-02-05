@@ -26,22 +26,25 @@ else
     }
     else
     {
-        <button onclick="@GetBooksForUser">Refresh</button>
-        <button onclick="@RefreshAllImages">Refresh all images</button>
-        <button onclick="@RefreshMissingImages">Refresh missing images</button>
-        <select bind="@_seriesFilter">
+        <button class="btn btn-sm btn-info" onclick="@GetBooksForUser">Refresh</button>
+        <button class="btn btn-sm btn-info" onclick="@DownloadAllImages">Download all images</button>
+        <button class="btn btn-sm btn-info" onclick="@DownloadMissingImages">Download missing images</button>
+        <button class="btn btn-sm btn-info" onclick="@RefreshUi">Refresh UI</button>
+        <p/>
+        <b style="margin-left: 0.1em">Filter:</b>
+        <select bind="@SeriesFilter">
             @foreach (var series in _series)
             {
                 <option value="@series">@series</option>
             }
         </select>
-        <select bind="@_hasReadFilter">
+        <select bind="@HasReadFilterProp">
             <option value="@HasReadFilter.All">All</option>
             <option value="@HasReadFilter.HasRead">Has Read</option>
             <option value="@HasReadFilter.HasNotRead">Has Not Read</option>
         </select>
-        <button onclick="@RefreshUi">Refresh UI</button>
-        <br/>
+        <br />
+        <p/>
         <p>
             <span class="h5">Total: </span><span class="h3" style="margin-right:.5em">@_totalCount</span><span class="h5">Read: </span><span class="h3" style="margin-right:.5em">@_totalReadCount</span><span class="h5">Not Read: </span><span class="h3">@_totalNotReadCount</span>
         </p>
@@ -127,7 +130,28 @@ else
 
     private string[] _series;
     private string _seriesFilter = "All";
+
+    private string SeriesFilter
+    {
+        get { return _seriesFilter; }
+        set
+        {
+            _seriesFilter = value;
+            RefreshUi().Wait();
+        }
+    }
+
     private HasReadFilter _hasReadFilter = HasReadFilter.All;
+
+    private HasReadFilter HasReadFilterProp
+    {
+        get { return _hasReadFilter; }
+        set
+        {
+            _hasReadFilter = value;
+            RefreshUi().Wait();
+        }
+    }
 
     private int _totalCount;
     private int _totalReadCount;
@@ -168,7 +192,7 @@ else
         }
     }
 
-    private async Task RefreshAllImages()
+    private async Task DownloadAllImages()
     {
         var message = new RefreshImagesHttpMessage
         {
@@ -180,7 +204,7 @@ else
         response.EnsureSuccessStatusCode();
     }
 
-    private async Task RefreshMissingImages()
+    private async Task DownloadMissingImages()
     {
         var message = new RefreshImagesHttpMessage
         {
@@ -215,42 +239,42 @@ else
         _totalNotReadCount = _filteredBooks.Count(b => !b.HasRead);
 
         _bookSeriesStats = _filteredBooks.GroupBy(b => b.Series)
-        .Select(b => new BookSeriesStats
-        {
-            Series = b.Key,
-            TotalCount = b.Count(),
-            TotalRead = b.Count(x => x.HasRead),
-            TotalNotRead = b.Count(x => !x.HasRead),
-            TotalPhysicalCount = b.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD"),
-            TotalPhysicalRead = b.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && x.HasRead),
-            TotalPhysicalNotRead = b.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && !x.HasRead),
-            TotalEbookCount = b.Count(x => x.Type == "ebook"),
-            TotalEbookRead = b.Count(x => x.Type == "ebook" && x.HasRead),
-            TotalEbookNotRead = b.Count(x => x.Type == "ebook" && !x.HasRead),
-            TotalAudioCount = b.Count(x => (x.Type == "MP3" || x.Type == "Audio CD")),
-            TotalAudioRead = b.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && x.HasRead),
-            TotalAudioNotRead = b.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && !x.HasRead),
-        })
-        .Concat(new[]
-        {
-    new BookSeriesStats
-    {
-        Series = "Total",
-        TotalCount = _filteredBooks.Length,
-        TotalRead = _filteredBooks.Count(b => b.HasRead),
-        TotalNotRead = _filteredBooks.Count(b => !b.HasRead),
-        TotalPhysicalCount = _filteredBooks.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD"),
-        TotalPhysicalRead = _filteredBooks.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && x.HasRead),
-        TotalPhysicalNotRead = _filteredBooks.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && !x.HasRead),
-        TotalEbookCount = _filteredBooks.Count(x => x.Type == "ebook"),
-        TotalEbookRead = _filteredBooks.Count(x => x.Type == "ebook" && x.HasRead),
-        TotalEbookNotRead = _filteredBooks.Count(x => x.Type == "ebook" && !x.HasRead),
-        TotalAudioCount = _filteredBooks.Count(x => (x.Type == "MP3" || x.Type == "Audio CD")),
-        TotalAudioRead = _filteredBooks.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && x.HasRead),
-        TotalAudioNotRead = _filteredBooks.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && !x.HasRead),
-    }
-        })
-        .ToArray();
+            .Select(b => new BookSeriesStats
+            {
+                Series = b.Key,
+                TotalCount = b.Count(),
+                TotalRead = b.Count(x => x.HasRead),
+                TotalNotRead = b.Count(x => !x.HasRead),
+                TotalPhysicalCount = b.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD"),
+                TotalPhysicalRead = b.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && x.HasRead),
+                TotalPhysicalNotRead = b.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && !x.HasRead),
+                TotalEbookCount = b.Count(x => x.Type == "ebook"),
+                TotalEbookRead = b.Count(x => x.Type == "ebook" && x.HasRead),
+                TotalEbookNotRead = b.Count(x => x.Type == "ebook" && !x.HasRead),
+                TotalAudioCount = b.Count(x => (x.Type == "MP3" || x.Type == "Audio CD")),
+                TotalAudioRead = b.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && x.HasRead),
+                TotalAudioNotRead = b.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && !x.HasRead),
+            })
+            .Concat(new[]
+            {
+                new BookSeriesStats
+                {
+                    Series = "Total",
+                    TotalCount = _filteredBooks.Length,
+                    TotalRead = _filteredBooks.Count(b => b.HasRead),
+                    TotalNotRead = _filteredBooks.Count(b => !b.HasRead),
+                    TotalPhysicalCount = _filteredBooks.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD"),
+                    TotalPhysicalRead = _filteredBooks.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && x.HasRead),
+                    TotalPhysicalNotRead = _filteredBooks.Count(x => x.Type != "ebook" && x.Type != "MP3" && x.Type != "Audio CD" && !x.HasRead),
+                    TotalEbookCount = _filteredBooks.Count(x => x.Type == "ebook"),
+                    TotalEbookRead = _filteredBooks.Count(x => x.Type == "ebook" && x.HasRead),
+                    TotalEbookNotRead = _filteredBooks.Count(x => x.Type == "ebook" && !x.HasRead),
+                    TotalAudioCount = _filteredBooks.Count(x => (x.Type == "MP3" || x.Type == "Audio CD")),
+                    TotalAudioRead = _filteredBooks.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && x.HasRead),
+                    TotalAudioNotRead = _filteredBooks.Count(x => (x.Type == "MP3" || x.Type == "Audio CD") && !x.HasRead),
+                }
+            })
+            .ToArray();
     }
 
     private class BookSeriesStats
