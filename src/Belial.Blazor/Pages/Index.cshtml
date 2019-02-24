@@ -181,7 +181,7 @@ else
     {
         try
         {
-            _allBooks = await HttpClient.GetJsonAsync<Book[]>($"{_functionAppUrl}/api/GetBooks/{_spreadsheetId}{_functionAppKey}");
+            _allBooks = await HttpClient.GetJsonAsync<Book[]>($"{_functionAppUrl}/api/GetBooks/{_spreadsheetId}?code={_functionAppKey}");
             _series = (new[] { "All" }).Concat(_allBooks.Select(b => b.Series).Distinct().OrderBy(b => b)).ToArray();
 
             FilterBooks();
@@ -200,7 +200,7 @@ else
             ImageUrlsToDownload = _filteredBooks.Where(c => !string.IsNullOrWhiteSpace(c.OriginalImageUrl)).Select(c => c.OriginalImageUrl).ToArray()
         };
         var content = new StringContent(JsonConvert.SerializeObject(message), Encoding.UTF8, "application/json");
-        var response = await HttpClient.PostAsync($"{_functionAppUrl}/api/RefreshImages{_functionAppKey}", content);
+        var response = await HttpClient.PostAsync($"{_functionAppUrl}/api/RefreshImages?code={_functionAppKey}", content);
         response.EnsureSuccessStatusCode();
     }
 
@@ -212,7 +212,7 @@ else
             ImageUrlsToDownload = _filteredBooks.Where(c => !string.IsNullOrWhiteSpace(c.OriginalImageUrl)).Select(c => c.OriginalImageUrl).ToArray()
         };
         var content = new StringContent(JsonConvert.SerializeObject(message), Encoding.UTF8, "application/json");
-        var response = await HttpClient.PostAsync($"{_functionAppUrl}/api/RefreshImages{_functionAppKey}", content);
+        var response = await HttpClient.PostAsync($"{_functionAppUrl}/api/RefreshImages?code={_functionAppKey}", content);
         response.EnsureSuccessStatusCode();
     }
 
